@@ -11,4 +11,4 @@ https://ontohub.org/repositories/geobia-ontologies/ontologies/9893
 
 SPOR is distributed under GPL v3 or later.
 
-for further questions, please conact me at arargyridis at gmail  com 
+for further questions, please contact me at arargyridis at gmail  com 
