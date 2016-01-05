@@ -14,23 +14,37 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef COMPLEMENTNODE_H
-#define COMPLEMENTNODE_H
-#include "logicnode.h"
+#ifndef MACHINELEARNINGNODE_H_INCLUDED
+#define MACHINELEARNINGNODE_H_INCLUDED
+#include "treenode.h"
+#include "machinelearning/machinelearningdatatype.h"
 
-class ComplementNode;
+class MachineLearningNode: public TreeNode {
+    int curMLObject; //helping variable to know which entry in the classification result is next
+    std:: string propertyName;
 
-typedef boost::shared_ptr<ComplementNode> ComplementNodePtr;
 
 
-class ComplementNode: public LogicNode {
+protected:
 
-public:
     void forceNULLMembershipValue();
-    ComplementNode();
-    virtual ~ComplementNode();
     void resetMembershipValue();
     void valueEstimation(int);
+
+
+
+public:
+    MachineLearningNode(std::string, MachineLearningDatatypePtr);
+    void computeClassification(matrix2dPtr, matrix2dPtr, matrix2dPtr, std::map<std::string, int>, vector<int> );
+    bool getComputed();
+    std::string* getEmployedClass(int);
+    std::string* getFeature(int);
+    int getNumberOfEmployedClasses();
+    int getNumberOfFeatures();
+    void setComputed();
+    matrix2dPtr output;
+    MachineLearningDatatypePtr datatype;
 };
 
-#endif // COMPLEMENTNODE_H
+typedef boost::shared_ptr<MachineLearningNode> MachineLearningNodePtr;
+#endif // MACHINELEARNINGNODE_H_INCLUDED

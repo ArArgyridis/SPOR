@@ -1,21 +1,17 @@
- /*
-    Part of the code of the SPatial Ontology Reasoner designed to reason over multi-scale GEOBIA Ontologies, as described in the following paper:
-    Argyridis A., Argialas, D., 2015. A Fuzzy Spatial Reasoner for Multi-Scale GEOBIA Ontologies, Photogrammetric Engineering and Remote Sesing, 41-48
-
-    Copyright (C) 2015  Argyros Argyridis
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+/*
+   Part of the code of the SPatial Ontology Reasoner designed to reason over multi-scale GEOBIA Ontologies, as described in the following paper:
+   Argyridis A., Argialas, D., 2015. A Fuzzy Spatial Reasoner for Multi-Scale GEOBIA Ontologies, Photogrammetric Engineering and Remote Sesing, 41-48
+   Copyright (C) 2015  Argyros Argyridis
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "ontologyparser.h"
@@ -26,6 +22,7 @@ const string fuzzyOwlDatatypeProperties[] = {"type","a", "b", "c", "d"};
 
 void OntologyParser::addOntologyHierarchy (xmlNodePtr ontoNode) {
 
+    //cout <<ontoNode->name <<endl;
     if  ( xmlStrEqual (ontoNode->name, (xmlChar*)"Ontology") ) {
         ontoData->ontologyIRI = new string( (char*)xmlGetProp(ontoNode,(xmlChar*)"about") );
         ontoData->ontologyIRI->append("#");
@@ -34,6 +31,7 @@ void OntologyParser::addOntologyHierarchy (xmlNodePtr ontoNode) {
     //Getting Fuzzy/ML Datatypes
     if (xmlStrEqual (ontoNode->name, (xmlChar*)"Datatype") ) {
         if( xmlHasProp(ontoNode,(xmlChar*)"about") ) {
+            //cout <<xmlGetProp(ontoNode,(xmlChar*)"about") << endl;
             getOntologyFuzzyDatatype(ontoNode);
         }
     }
@@ -53,12 +51,18 @@ void OntologyParser::addOntologyHierarchy (xmlNodePtr ontoNode) {
         }
     }
 
+    if (xmlStrEqual (ontoNode->name, (xmlChar*)"NamedIndividual") ) {
+        getOntologyIndividual(ontoNode);
+    }
+
+
     if ( (xmlNextElementSibling(ontoNode) !=NULL) ) {
         addOntologyHierarchy(xmlNextElementSibling(ontoNode));
     }
 }
 
 string OntologyParser::changeTags(string *fileName) {
+    // ifstream inFile("ontology_change_detection_v2.owl");
     ifstream inFile( fileName->c_str() );
     if ( inFile.is_open() ) {
         ofstream outFile;
@@ -93,6 +97,8 @@ string OntologyParser::changeTags(string *fileName) {
 void OntologyParser::computeSelectStr() {
     for (register int i = 0; i < (int)ontoData->selectVec.size(); i++)
         *selectStr += "," + ontoData->selectVec[i] ;
+
+    //*selectStr = selectStr->substr(0, selectStr->size()-1);
     ontoData->selectStr = selectStr;
 }
 
@@ -100,6 +106,7 @@ void OntologyParser::computeSelectStr() {
 
 string cName, fName, pName, elCondition;
 string dName="",  oProp="", funcName="", featureType="";
+//bool classFeature = false;
 map<string, ClassRelatedFeatureNodePtr>::iterator CRFeatureIt;
 map<string, FuzzyObjectTypePtr >::iterator fuzzyObjectTypeMapIt;
 
@@ -107,8 +114,10 @@ map<string, FuzzyObjectTypePtr >::iterator fuzzyObjectTypeMapIt;
 map<string, OntologyClassPtr>::iterator classMapIt;
 map<string, FuzzyDatatypePtr>::iterator fuzzyDatatypeMapIt;
 
+map<string, MachineLearningDatatypePtr>::iterator mlDatatypeMapIt;
 
 void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot) {
+    //cout <<ontoNode->name << endl;
     if  (xmlStrEqual (ontoNode->name, (xmlChar*) "Class" )  )  {
         if (xmlHasProp(ontoNode,(xmlChar*)"about")) {
             cName = ontoPropValue(ontoNode,"about");
@@ -156,21 +165,30 @@ void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot
             if (classMapIt == ontoData->classMap->end() )
                 (*ontoData->classMap)[dName] = OntologyClassPtr(new OntologyClass(dName));
 
-            (*ontoData->classMap)[dName]->addToClassVector((string)"SubClass", cName);
+
             (*ontoData->classMap)[cName] ->addToClassVector("SuperClass", dName);
 
-
-            if  ( tempRoot->getAllParentAndNode() == 0)
+            if  ( tempRoot->getAllParentAndNode() == 0) { //this is  a parent class
                 (*ontoData->classMap)[cName] ->addToClassVector("MotherClass", dName);
+                (*ontoData->classMap)[dName]->addToClassVector((string)"SubClass", cName);
+            }
+
+            if ( ontoData->superClassNodeMap->find(dName) == ontoData->superClassNodeMap->end() )
+                 (*ontoData->superClassNodeMap)[dName]  = SuperClassNodePtr ( new SuperClassNode (   (*ontoData->classMap)[dName]  ) );
+
+            tempRoot->addSubNode( (*ontoData->superClassNodeMap)[dName] );
+            /*
             else {
                 //check if the superclass node exists
                 if ( ontoData->superClassNodeMap->find(dName) == ontoData->superClassNodeMap->end() ) {
-                    SuperClassNodePtr sNode = SuperClassNodePtr ( new SuperClassNode (   (*ontoData->classMap)[dName]  ) );
-                    (*ontoData->superClassNodeMap)[dName]  = sNode;
+                    (*ontoData->superClassNodeMap)[dName]  = SuperClassNodePtr ( new SuperClassNode (   (*ontoData->classMap)[dName]  ) );
                 }
                 tempRoot->addSubNode( (*ontoData->superClassNodeMap)[dName] );
             }
+            */
+
         }
+
         if (xmlNextElementSibling(ontoNode) != NULL )
             getOntologyClass(xmlNextElementSibling(ontoNode), tempRoot);
     }
@@ -181,6 +199,7 @@ void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot
         getOntologyClass(xmlFirstElementChild(ontoNode), tempNode);
 
         if (xmlNextElementSibling(ontoNode) !=NULL){
+            //cout <<  ontoPropValue(xmlNextElementSibling(ontoNode),"resource")<< endl;
             getOntologyClass(xmlNextElementSibling(ontoNode) , tempRoot);
         }
 
@@ -195,18 +214,24 @@ void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot
     }
     else if (xmlStrEqual (ontoNode->name, (xmlChar*) "onProperty" )) {
         dName = ontoPropValue(ontoNode,"resource");
-        //checking here if the current feature is a class-related one ;)
+        //checking here if the current feature is a class-related one
         getOntologyClass(xmlNextElementSibling(ontoNode), tempRoot) ;
     }
-    else if (xmlStrEqual (ontoNode->name, (xmlChar*) "someValuesFrom" ))   {
+    else if (xmlStrEqual (ontoNode->name, (xmlChar*) "someValuesFrom" ))   { //this is a restriction
         if (xmlHasProp(ontoNode,(xmlChar*)"resource") ) {
             fName = ontoPropValue(ontoNode,"resource");
+            //std :: cout << "dName \t" <<dName <<"\n"; //checkings below must be changed. dName should be considered -- TODO
              if(    (*ontoData->fuzzyDatatypeMap).find( fName )  != (*ontoData->fuzzyDatatypeMap).end()  ) { // if it is a datatype property
                     if( std::find(ontoData->selectVec.begin(), ontoData->selectVec.end(), dName) ==  ontoData->selectVec.end() )
                         ontoData->selectVec.push_back(dName);
 
                     FeatureNodePtr tFtNode =  FeatureNodePtr (new FeatureNode( dName, cName, (*ontoData->fuzzyDatatypeMap)[fName] ) );
                     tempRoot->addSubNode(tFtNode);
+                }
+                else if (   ( *ontoData->machineLearningDatatypeMap).find(fName ) !=  ( *ontoData->machineLearningDatatypeMap).end()   ) { // if it is a machine learning algorithm
+                    MachineLearningNodePtr mlNode = MachineLearningNodePtr (new MachineLearningNode (dName, ( *ontoData->machineLearningDatatypeMap)[fName]    )    );
+                    (*ontoData->machineLearningDatatypeMap)[fName]->addEmployedClass(cName);
+                    tempRoot->addSubNode(mlNode);
                 }
                 else {// it is an object property
                 //checking if the class has been defined
@@ -226,7 +251,6 @@ void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot
         }
       else {
             //if there is no resource on the SomeValuesFrom node, then a complex expression follows
-
             string tmpCName = genRandomString(10);
             (*ontoData->classMap)[tmpCName] = OntologyClassPtr(new OntologyClass(tmpCName));
             LogicNodePtr tmpRt = (*ontoData->classMap)[tmpCName]->getRootElement();
@@ -236,6 +260,7 @@ void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot
 
             ClassRelatedFeatureNodePtr crNode = ClassRelatedFeatureNodePtr(new ClassRelatedFeatureNode(tmpCName, (*ontoData->fuzzyObjectTypeMap)[objectFeature])); //create the new feature
             tempRoot->addSubNode(crNode); //add it as subnode to the tempRoot ;)
+            cout <<"object feature name: " <<objectFeature << endl;
             (*ontoData->classMap)[cName]->addToClassVector("ComplementClass", tmpCName);
         }
     }
@@ -244,7 +269,8 @@ void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot
          if ( xmlHasProp(ontoNode,(xmlChar*)"resource")  ) {
              dName = ontoPropValue(ontoNode, "resource");
              classMapIt = ontoData->classMap->find(dName);
-             //if the class does not exist, create it
+
+             /*
              if (classMapIt ==ontoData->classMap->end()) {
                  (*ontoData->classMap)[dName] = OntologyClassPtr( new OntologyClass(dName) );
                  SuperClassNodePtr sNode = SuperClassNodePtr ( new SuperClassNode (   (*ontoData->classMap)[dName]  ) );
@@ -253,6 +279,16 @@ void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot
                  SuperClassNodePtr sNode = SuperClassNodePtr ( new SuperClassNode (   (*ontoData->classMap)[dName]  ) );
                  (*ontoData->superClassNodeMap)[dName]  = sNode;
              }
+             */
+
+             //if the class does not exist, create it
+             if (classMapIt ==ontoData->classMap->end())
+                 (*ontoData->classMap)[dName] = OntologyClassPtr( new OntologyClass(dName) );
+            //if the superclassnode does not exist, also create it
+             if ( ontoData->superClassNodeMap->find(dName) == ontoData->superClassNodeMap->end() )
+                  (*ontoData->superClassNodeMap)[dName] = SuperClassNodePtr ( new SuperClassNode (   (*ontoData->classMap)[dName]  ) );
+
+
              comNode->addSubNode( (*ontoData->superClassNodeMap)[dName] );
              tempRoot->addSubNode( comNode );
              (*ontoData->classMap)[cName]->addToClassVector ("ComplementClass", dName);
@@ -298,12 +334,38 @@ bool OntologyParser::getOntologyFuzzyDatatype(xmlNodePtr ontoNode) {
             return true;
        }
 
-        if ( (xmlFirstElementChild(ontoNode) != NULL) and (added ==false) )
-            added = getOntologyFuzzyDatatype(xmlFirstElementChild(ontoNode));
-        if ( (xmlNextElementSibling(ontoNode) != NULL) and (added ==false) )
-            added = getOntologyFuzzyDatatype(xmlNextElementSibling(ontoNode));
-        if (added ==true)
+        if( xmlStrEqual( ontoNode->name ,  (xmlChar*)"machineLearningLabel") ) {
+
+            ontoNode = xmlFirstElementChild(ontoNode);
+            string method = (char*)xmlGetProp(ontoNode,(xmlChar*)"type");
+            //string properties = (char*)xmlGetProp(ontoNode,(xmlChar*)"properties");
+
+            ontoNode = xmlFirstElementChild(ontoNode);
+            string network = (char*)xmlGetProp(ontoNode,(xmlChar*)"network");
+            string features = (char*)xmlGetProp(ontoNode,(xmlChar*)"feature_space");
+            double lr = atof ( (char*)xmlGetProp(ontoNode,(xmlChar*)"learning_rate") );
+            double lrCoef = atof( (char*)xmlGetProp(ontoNode,(xmlChar*)"learning_coef") );
+            int epochs = atoi ( (char*)xmlGetProp(ontoNode,(xmlChar*)"epochs") );
+            int k = atoi ( (char*)xmlGetProp(ontoNode,(xmlChar*)"k") );
+            double supLR = atof ( (char*)xmlGetProp(ontoNode,(xmlChar*)"supervised_lr") );
+            double supCoef = atof( (char*)xmlGetProp(ontoNode,(xmlChar*)"supervised_coef") );
+            double supEp = atof ( (char*)xmlGetProp(ontoNode,(xmlChar*)"supervised_epochs") );
+
+            //cout <<method<<"\t" << properties <<"\t" << onProperty<<"\t" << samplesClassTable << endl;
+
+            //(string mtd, string strNet,  string fts, double lr, double lrCoef, int epchs, int k, double supLR, double supLRCoef, int supEp);
+
+            //(method, network,  properties, features, lr, lrCoef, epochs, supLR, supCoef, supEp  )
+            (*ontoData->machineLearningDatatypeMap ) [dName] = MachineLearningDatatypePtr ( new MachineLearningDatatype (method, network, features, lr, lrCoef, epochs, k, supLR, supCoef, supEp  ) );
             return true;
+        }
+
+    if ( (xmlFirstElementChild(ontoNode) != NULL) and (added ==false) )
+        added = getOntologyFuzzyDatatype(xmlFirstElementChild(ontoNode));
+    if ( (xmlNextElementSibling(ontoNode) != NULL) and (added ==false) )
+        added = getOntologyFuzzyDatatype(xmlNextElementSibling(ontoNode));
+    if (added ==true)
+        return true;
 
     return false;
 }
@@ -327,7 +389,38 @@ void OntologyParser::getOntologyFuzzyObjectProperty(xmlNodePtr ontoNode) {
 }
 
 vector<string> tmpVector;
+bool OntologyParser::getOntologyIndividual(xmlNodePtr ontoNode) {
+    bool added = false;
 
+    if (xmlStrEqual (ontoNode->name, (xmlChar*)"type")   ) {
+        string cName = ontoPropValue(ontoNode, "resource");
+        tmpVector.push_back(cName);
+    }
+
+    if ( xmlStrEqual(ontoNode->name, (xmlChar*)"id") )  {
+        string idCode = (char*) xmlNodeGetContent(ontoNode);
+
+        for (register unsigned int i = 0; i < tmpVector.size(); i++) {
+            //cout << "adding " << tmpVector.back()<<"\t" << idCode << endl;
+            (*ontoData->classMap)[  tmpVector.back() ]->addIndividual(idCode);
+            tmpVector.pop_back();
+        }
+
+
+        added = true;
+        //return true;
+    }
+
+    if ( ( xmlFirstElementChild(ontoNode) != NULL) && ( added == false ) )
+        added = getOntologyIndividual( xmlFirstElementChild(ontoNode) );
+
+    if ( ( xmlNextElementSibling(ontoNode) != NULL) && ( added == false ) )
+        added = getOntologyIndividual( xmlNextElementSibling(ontoNode) );
+
+
+    return added;
+
+}
 
 string OntologyParser::ontoPropValue(xmlNodePtr node, string pName) {
     pName =(char*) xmlGetProp(node,(xmlChar*)pName.c_str());

@@ -14,29 +14,37 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "fuzzyobjectproperty.h"
-
-using namespace std;
-
-FuzzyObjectProperty::FuzzyObjectProperty():  objectProperty(""), fuzzyDatatype ( FuzzyDatatypePtr(new FuzzyDatatype())) {}
-
-FuzzyObjectProperty::FuzzyObjectProperty(string property, FuzzyDatatypePtr fDType) :objectProperty(property), fuzzyDatatype(fDType) {}
-
-FuzzyObjectProperty::FuzzyObjectProperty(string property): objectProperty(property), fuzzyDatatype(FuzzyDatatypePtr(new FuzzyDatatype() ) ) {
-    fuzzyDatatype->setFunction("complement");
-}
-
-FuzzyObjectProperty::~FuzzyObjectProperty() {}
+#ifndef LOGISTICREGRESSION_H
+#define LOGISTICREGRESSION_H
 
 
-void FuzzyObjectProperty::setObjectPropertyType(std::string prop) {
-    objectProperty = prop;
-}
+#include "functions.h"
+#include <stdlib.h>
+#include <boost/shared_array.hpp>
 
-string FuzzyObjectProperty::getFeatureType(){
-    return objectProperty;
-}
+class LogisticRegression {
+  matrix2dPtr Weights, bias, outData , valInputData, valOutData;
+  int n_in;
+  int n_out;
+  int N;  // num of inputs
+  void softmax(matrix2dPtr);
+  float computeError();
+public:
 
-double FuzzyObjectProperty::calculateValue(double v) {
-    return fuzzyDatatype->calculateValue(v);
-}
+ matrix2dPtr inputData;
+
+
+  matrix2dPtr getWeights();
+  LogisticRegression(int, int, int);
+  LogisticRegression(matrix2dPtr, matrix2dPtr, int, int);
+
+  ~LogisticRegression();
+
+  void train(int, float, float, float, matrix2dPtr);
+  void predict(matrix2dPtr, matrix2dPtr);
+  float negativeLogLikelihood();
+};
+
+void test_lr();
+
+#endif

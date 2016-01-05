@@ -14,29 +14,20 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "fuzzyobjectproperty.h"
+#ifndef CRBM_H
+#define CRBM_H
+#include "RBM.h"
 
-using namespace std;
-
-FuzzyObjectProperty::FuzzyObjectProperty():  objectProperty(""), fuzzyDatatype ( FuzzyDatatypePtr(new FuzzyDatatype())) {}
-
-FuzzyObjectProperty::FuzzyObjectProperty(string property, FuzzyDatatypePtr fDType) :objectProperty(property), fuzzyDatatype(fDType) {}
-
-FuzzyObjectProperty::FuzzyObjectProperty(string property): objectProperty(property), fuzzyDatatype(FuzzyDatatypePtr(new FuzzyDatatype() ) ) {
-    fuzzyDatatype->setFunction("complement");
-}
-
-FuzzyObjectProperty::~FuzzyObjectProperty() {}
+class CRBM : public RBM
+{
+    void sample_v_given_h(matrix2dPtr, matrix2dPtr, matrix2dPtr);
+    void propdown(matrix2dPtr, matrix2dPtr);
+public:
+    CRBM();
+    CRBM(matrix2dPtr, int, int, matrix2dPtr, matrix2dPtr, matrix2dPtr);
 
 
-void FuzzyObjectProperty::setObjectPropertyType(std::string prop) {
-    objectProperty = prop;
-}
+};
 
-string FuzzyObjectProperty::getFeatureType(){
-    return objectProperty;
-}
-
-double FuzzyObjectProperty::calculateValue(double v) {
-    return fuzzyDatatype->calculateValue(v);
-}
+void test_crbm();
+#endif // CRBM_H

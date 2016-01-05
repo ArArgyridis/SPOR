@@ -14,29 +14,35 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "fuzzyobjectproperty.h"
+#ifndef DBN_H
+#define DBN_H
 
-using namespace std;
+#include "HiddenLayer.h"
+#include "RBM.h"
+#include <iostream>
+#include <cmath>
+#include "LogisticRegression.h"
+#include <vector>
+#include "CRBM.h"
 
-FuzzyObjectProperty::FuzzyObjectProperty():  objectProperty(""), fuzzyDatatype ( FuzzyDatatypePtr(new FuzzyDatatype())) {}
+class DBN {
+protected:
+    matrix2dPtr inputData, outData;
+    std::vector <int> hiddenLayerSizes;
+    int nInputs, nOuts, nSamples, nLayers;
+    std::vector <HiddenLayer> sigmoidLayers;
+    std::vector <RBM*> rbmLayers;
+    LogisticRegression *logisticLayer;
+    float finetuneCost;
+public:
+    DBN();
+    DBN(matrix2dPtr, matrix2dPtr, std::vector<int>);
+    void finetuning(float, float, int);
+    void pretrain(float, float, int, int);
+    matrix2dPtr predict(matrix2dPtr);
+    ~DBN();
+};
 
-FuzzyObjectProperty::FuzzyObjectProperty(string property, FuzzyDatatypePtr fDType) :objectProperty(property), fuzzyDatatype(fDType) {}
+void test_dbn();
 
-FuzzyObjectProperty::FuzzyObjectProperty(string property): objectProperty(property), fuzzyDatatype(FuzzyDatatypePtr(new FuzzyDatatype() ) ) {
-    fuzzyDatatype->setFunction("complement");
-}
-
-FuzzyObjectProperty::~FuzzyObjectProperty() {}
-
-
-void FuzzyObjectProperty::setObjectPropertyType(std::string prop) {
-    objectProperty = prop;
-}
-
-string FuzzyObjectProperty::getFeatureType(){
-    return objectProperty;
-}
-
-double FuzzyObjectProperty::calculateValue(double v) {
-    return fuzzyDatatype->calculateValue(v);
-}
+#endif // DBN_H

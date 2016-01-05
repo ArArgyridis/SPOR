@@ -14,29 +14,16 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "fuzzyobjectproperty.h"
+#ifndef CDBN_H
+#define CDBN_H
+#include "DBN.h"
+#include "CRBM.h"
 
-using namespace std;
+class CDBN : public DBN
+{
+public:
+    CDBN(matrix2dPtr, matrix2dPtr, int, std::vector<int>, int);
+};
+void test_cdbn();
 
-FuzzyObjectProperty::FuzzyObjectProperty():  objectProperty(""), fuzzyDatatype ( FuzzyDatatypePtr(new FuzzyDatatype())) {}
-
-FuzzyObjectProperty::FuzzyObjectProperty(string property, FuzzyDatatypePtr fDType) :objectProperty(property), fuzzyDatatype(fDType) {}
-
-FuzzyObjectProperty::FuzzyObjectProperty(string property): objectProperty(property), fuzzyDatatype(FuzzyDatatypePtr(new FuzzyDatatype() ) ) {
-    fuzzyDatatype->setFunction("complement");
-}
-
-FuzzyObjectProperty::~FuzzyObjectProperty() {}
-
-
-void FuzzyObjectProperty::setObjectPropertyType(std::string prop) {
-    objectProperty = prop;
-}
-
-string FuzzyObjectProperty::getFeatureType(){
-    return objectProperty;
-}
-
-double FuzzyObjectProperty::calculateValue(double v) {
-    return fuzzyDatatype->calculateValue(v);
-}
+#endif // CDBN_H

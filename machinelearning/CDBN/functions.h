@@ -16,11 +16,42 @@
 
 #ifndef FUNCTIONS_H_INCLUDED
 #define FUNCTIONS_H_INCLUDED
+#include <stdlib.h>
+#include <cmath>
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/io.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/numeric/ublas/assignment.hpp>
+#include <boost/random/binomial_distribution.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include "boost/random/variate_generator.hpp"
 
-double sigmoidal(double, double*);
-double inverse_sigmoidal (double, double*);
-double triangular (double, double*);
-double trapezoidal (double, double*);
-double leftShoulder (double, double*);
-double rightShoulder (double, double*);
+
+typedef boost::numeric::ublas::matrix <double> matrix2d;
+typedef  boost::shared_ptr<boost::numeric::ublas::matrix <double > > matrix2dPtr;
+typedef boost::numeric::ublas::matrix<double >::iterator1 iterator1;
+typedef boost::numeric::ublas::matrix<double >::iterator2 iterator2;
+
+
+
+double computeAverage(matrix2dPtr);
+
+double sigmoid (double);
+
+void printMatrix(std::string, matrix2dPtr);
+
+void uniformArray(matrix2dPtr , double , double );
+
+void writeMatrix(std::string, matrix2dPtr );
+
+void sigmoidArray (matrix2dPtr, matrix2dPtr);
+
+void binomialArray(int, matrix2dPtr, matrix2dPtr);
+
+void exponentialArray(matrix2dPtr, matrix2dPtr);
+
+void hyperbolicTangentArray(matrix2dPtr, matrix2dPtr);
+
+void logArray(matrix2dPtr, matrix2dPtr);
+
 #endif // FUNCTIONS_H_INCLUDED

@@ -1,23 +1,19 @@
- /*
-    Part of the code of the SPatial Ontology Reasoner designed to reason over multi-scale GEOBIA Ontologies, as described in the following paper:
-    Argyridis A., Argialas, D., 2015. A Fuzzy Spatial Reasoner for Multi-Scale GEOBIA Ontologies, Photogrammetric Engineering and Remote Sesing, 41-48
-
-    Copyright (C) 2015  Argyros Argyridis
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+/*
+   Part of the code of the SPatial Ontology Reasoner designed to reason over multi-scale GEOBIA Ontologies, as described in the following paper:
+   Argyridis A., Argialas, D., 2015. A Fuzzy Spatial Reasoner for Multi-Scale GEOBIA Ontologies, Photogrammetric Engineering and Remote Sesing, 41-48
+   Copyright (C) 2015  Argyros Argyridis
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
- 
+
 #include "ontologycontainer.h"
 
 using namespace std;
@@ -47,7 +43,6 @@ void OntologyContainer::classifyClass( OntologyClassPtr curClass ) {
                 classifyClass( ( *ontoData->classMap ) [ curClass->getClassVector( (string) "SuperClass" )->at(i) ] );
             }
         }
-
         for (register int i = 0; i < (int) curClass->getClassVector( (string) "ComplementClass")->size(); i++ ) {
             if (  !( *ontoData->classMap )[ curClass->getClassVector( (string) "ComplementClass")->at(i) ] -> getComputed() ) {
                 if (  (*curClass->getClassName() ) != ( * (( *ontoData->classMap )[ curClass->getClassVector( (string) "ComplementClass")->at(i) ] ->getClassName()) ) )
@@ -63,7 +58,7 @@ void OntologyContainer::classifyClass( OntologyClassPtr curClass ) {
             }
         }
 
-        if ( (curClass->getStatus()) && (!curClass->getComputed()) )     { //if the class is enabled for classification
+        if ( (curClass->getStatus()) && (!curClass->getComputed()) ) { //if the class is enabled for classification
             curClass->estimateMembership();
         }
     }
@@ -158,7 +153,11 @@ void OntologyContainer::generateTopology(bool computeTopology, bool recomputeTop
         query = "select  tablename from pg_tables where schemaname='public' and  tablename='objecthierarchy" +  *ontoData->tableName + "';";
         res = Xaction.exec(query);
         if(res.empty()){
-            query = " select o1."+ *ontoData->gidColumn + ", o2."+ *ontoData->gidColumn + " as "+ *ontoData->gidColumn + "contained, o1.level-o2.level as distance, st_area(o2."+ *ontoData->geomColumn +")/st_area(o1."+ *ontoData->geomColumn +") as relative_area_" + *ontoData->gidColumn + "contained_"+ *ontoData->gidColumn + "  into objecthierarchy" + *ontoData->tableName +  " from "+ *ontoData->tableName + " o1, " + *ontoData->tableName +  " o2 where  o1.level>o2.level and o1."+ *ontoData->geomColumn + " && o2."+ *ontoData->geomColumn + " and st_contains (o1."+ *ontoData->geomColumn + ",o2."+ *ontoData->geomColumn + ")=true;";
+            //ofstream file("obj-subobj");
+            //st_intersects with st_buffer seem to work better than st_contains
+            query = " select o1."+ *ontoData->gidColumn + ", o2."+ *ontoData->gidColumn + " as "+ *ontoData->gidColumn + "contained, o1.level-o2.level as distance, st_area(o2."+ *ontoData->geomColumn +")/st_area(o1."+ *ontoData->geomColumn +") as relative_area_" + *ontoData->gidColumn + "contained_"+ *ontoData->gidColumn + "  into objecthierarchy" + *ontoData->tableName +  " from "+ *ontoData->tableName + " o1, " + *ontoData->tableName +  " o2 where  o1.level>o2.level and o1."+ *ontoData->geomColumn + " && o2."+ *ontoData->geomColumn + " and st_intersects (o1."+ *ontoData->geomColumn + ", st_buffer(o2."+ *ontoData->geomColumn + ", -0.0001) )=true;";
+            //file << query;
+            //file.close();
             Xaction.exec(query);
         }
 
@@ -194,13 +193,16 @@ OntologyContainer::OntologyContainer( OntologyDataPtr data, bool computeTopology
 
 OntologyContainer::~OntologyContainer() {
     dropCRTables();
+    cout <<"everything deleted\n";
+
 }
 
 void OntologyContainer::labelSegment() {
     //pqxx::ontoData->Connection ontoData->Conn(ontoData->ConnectionontoDataeter);
     work Xaction (*ontoData->Conn,"inserting labels into database");
 
-    //droping classification table if exists
+    //droping classification table if exists;
+
     string updateQuery="drop table if exists  final_classification_" + *ontoData->tableName + ";";
     Xaction.exec(updateQuery);
 

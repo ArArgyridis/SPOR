@@ -1,29 +1,32 @@
- /*
-    Part of the code of the SPatial Ontology Reasoner designed to reason over multi-scale GEOBIA Ontologies, as described in the following paper:
-    Argyridis A., Argialas, D., 2015. A Fuzzy Spatial Reasoner for Multi-Scale GEOBIA Ontologies, Photogrammetric Engineering and Remote Sesing, 41-48
-
-    Copyright (C) 2015  Argyros Argyridis
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+/*
+   Part of the code of the SPatial Ontology Reasoner designed to reason over multi-scale GEOBIA Ontologies, as described in the following paper:
+   Argyridis A., Argialas, D., 2015. A Fuzzy Spatial Reasoner for Multi-Scale GEOBIA Ontologies, Photogrammetric Engineering and Remote Sesing, 41-48
+   Copyright (C) 2015  Argyros Argyridis
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
- 
+
 #include "ontologyclass.h"
 #include<cmath>
 #include <omp.h>
+#include "machinelearning/CDBN/functions.h"
 
 using namespace std;
 using namespace pqxx;
+
+
+typedef boost::numeric::ublas::matrix<double >::iterator1 iterator1;
+typedef boost::numeric::ublas::matrix<double >::iterator2 iterator2;
+
+
 
 
 OntologyDataPtr OntologyClass::ontoData;
@@ -32,6 +35,156 @@ void OntologyClass::addIndividual(string id) {
     ontoIndividuals.push_back(id);
 
 }
+
+void OntologyClass::computeMachineLearningClassification(LogicNodePtr lNode) {
+    for (register int i = 0; i < lNode->getNodeCount(); i++) {
+        if ( lNode->getSubNode(i)->getNodeType() == MACHINELEARNING ) {
+            MachineLearningNodePtr tmpNode = dynamic_pointer_cast<MachineLearningNode>(lNode->getSubNode(i));
+            if (!tmpNode->getComputed() ) {
+                string tmpStr = "with ";
+                string selectFtrStr = "select " + *ontoData->tableName + "." + *ontoData->gidColumn + ", ";
+                string fromSamStr = " from " + *ontoData->tableName +", ";
+                string fromDatStr ="";
+                string whereSamStr = " where " + *ontoData->gidColumn + " in (" ;
+                string whereDatStr=" where ";
+                string orderStr = " order by " + *ontoData->tableName + "." + *ontoData->gidColumn + ";";
+                matrix2dPtr sampleResult ;
+
+                if ( tmpNode->getNumberOfFeatures() > 0 ) {
+                    for (register int i = 0; i <  tmpNode->getNumberOfFeatures(); i++ ) {
+                        string ftr = *tmpNode->getFeature(i);
+                        tmpStr += "_tmp" + to_string(i) + " as "
+                                "( select min(t1." + ftr +") max_" + ftr + ", max(t2." + ftr +") min_" + ftr +
+                                " from "
+                                " ( select " + ftr + " from " +*ontoData->tableName + " where level = 1 order by " + ftr + " desc limit  (select count(*) from " + *ontoData->tableName + ") *0.003 ) as t1, "
+                                " ( select " + ftr + " from " + *ontoData->tableName +  " where level = 1 order by " + ftr +  " asc limit (select count(*) from " + *ontoData->tableName + ") *0.003 ) as t2 ), "
+                                "tmp" + to_string(i) + " as ( select   1 / (max_"+  ftr  + " - min_"+  ftr + " ) a_" + ftr  + " , 1 - 1 / (max_"  + ftr + " - min_" + ftr  + ")*max_"+ ftr  + " b_" + ftr + " from _tmp" + to_string(i) +"),";
+
+                        selectFtrStr += " tmp"+to_string(i) + ".a_" + ftr + "*" + ftr + " +"  + "tmp"+to_string(i) +  ".b_" + ftr +" " + ftr  + ",";
+                        fromSamStr += " tmp"+ to_string(i)+",";
+                    }
+                }
+                else {
+                    for (register unsigned int i = 0; i < ontoData->selectVec.size(); i++) {
+                        string ftr = *tmpNode->getFeature(i);
+                        tmpStr += "tmp"+to_string(i) + " as ( select   1 / (max( "+  ftr  + ") - min("+  ftr + ") ) a_" + ftr  + " , 1 - 1 / (max("  + ftr + " ) - min(" + ftr  + " ))*max("+ ftr  + ") b_" + ftr + " from " +*ontoData->tableName +"),";
+
+                        selectFtrStr += "a_" + ftr + "*" + ftr + " + b_" + ftr +" " + ftr  + ",";
+                        fromSamStr += " tmp"+ to_string(i)+",";
+                    }
+                }
+                tmpStr = tmpStr.substr(0, tmpStr.size() - 1);
+                selectFtrStr = selectFtrStr.substr(0, selectFtrStr.size() - 1);
+                fromSamStr = fromSamStr.substr(0, fromSamStr.size() - 1);
+
+                int classCode = 0;
+                map<int,  int> tmpMap;
+                vector<int> tmpMapKeys;
+                map<string, int> codeMap;
+                for (register int pos = 0; pos < tmpNode->getNumberOfEmployedClasses(); pos++) {
+                    string tmpClassName = *tmpNode->getEmployedClass(pos) ;
+                    for (register unsigned int i = 0; i < (*ontoData->classMap)[tmpClassName]->ontoIndividuals.size(); i++  ) {
+                        if (tmpMap.find(  atoi ( (*ontoData->classMap)[tmpClassName]->ontoIndividuals[i].c_str() )   )  == tmpMap.end()   ) {
+                            tmpMap[ atoi ( (*ontoData->classMap)[tmpClassName]->ontoIndividuals[i].c_str() ) ] = classCode;
+                            tmpMapKeys.push_back( atoi ( (*ontoData->classMap)[tmpClassName]->ontoIndividuals[i].c_str() )   );
+                            //cout <<tmpClassName <<"\t" << (*ontoData->classMap)[tmpClassName]->ontoIndividuals[i] << endl;
+                            whereSamStr += (*ontoData->classMap)[tmpClassName]->ontoIndividuals[i] + ",";
+                        }
+                    }
+                    codeMap[tmpClassName] = classCode;
+                    //cout <<"className: " <<tmpClassName<<"\t" << classCode << endl;
+                    classCode++;
+                }
+                if (classCode <2)
+                    classCode++;
+
+                whereSamStr = whereSamStr.substr(0, whereSamStr.size()-1);
+                whereSamStr += ") order by " + *ontoData->gidColumn;
+
+                //creating from and where string to classify only the objects which are candidates for the examnined classes
+                fromDatStr = fromSamStr;
+
+                for (  vector<string>::iterator it = MotherClass.begin(); it !=MotherClass.end(); it++  ) {
+                    fromDatStr += ", " + *it;
+                    whereDatStr += *ontoData->tableName + "." + *ontoData->gidColumn + " = " + *it + "." + *ontoData->gidColumn + " and ";
+                }
+
+                whereDatStr = whereDatStr.substr(0, whereDatStr.size()-4);
+                connection Conn( *ontoData->connectionParameter );
+                //crete new work
+                work Xaction(Conn, "geting min max");
+
+                //retrieving normalized data and samples
+                result data = Xaction.exec( tmpStr + selectFtrStr + fromDatStr +whereDatStr +  orderStr  );
+
+                result samples = Xaction.exec(tmpStr + selectFtrStr + fromSamStr + whereSamStr);
+
+                 /*
+                ofstream file1("sample_query");
+                ofstream file2 ("all_query");
+                file1 << tmpStr + selectFtrStr + fromSamStr + whereSamStr;
+                file2 << tmpStr + selectFtrStr + fromDatStr +whereDatStr +  orderStr;
+                file1.close();
+                file2.close();
+                */
+                Xaction.commit();
+                //storing data and samples within arrays
+                matrix2dPtr sampleData = matrix2dPtr ( new matrix2d  (  samples.size(), samples.columns() -1  )   );
+
+                for ( register unsigned int i = 0; i < samples.size(); i++)
+                    //skip first column as it is the id of the object
+                    for (register int unsigned  j = 1; j < samples.columns(); j++) {
+                        double inp = samples[i][j].as<double>();
+                        if (inp < 0.0 )
+                            inp = 0.0;
+                        else if (inp > 1.0)
+                            inp = 1.0;
+                        (*sampleData)(i,j-1) = inp;
+                    }
+
+                matrix2dPtr classifyData = matrix2dPtr ( new matrix2d  (  data.size(), data.columns() -1  )   );
+                vector<int> objCode( data.size() );
+                for ( register unsigned int i = 0; i < data.size(); i++) {
+                    for (register unsigned int j = 0; j < data.columns(); j++) {
+                        //cout << i << "\t" << j << endl;
+                        if ( j == 0) {
+                            int inp = data[i][0].as<int>();
+                            //cout <<"inp = " << inp << endl;
+                            objCode[i] = inp;
+                        }
+                        else {
+                            double inp = data[i][j].as<double>();
+                            if (inp < 0.0 )
+                                inp = 0.0;
+                            else if (inp > 1.0)
+                                inp = 1.0;
+                            (*classifyData)(i,j-1) = inp;
+                        }
+                    }
+                }
+
+                //printMatrix("sampledata 1", sampleData);
+                sort( tmpMapKeys.begin(), tmpMapKeys.end() );
+                sampleResult = matrix2dPtr (new matrix2d  ( samples.size(), classCode ) );
+                for (register unsigned int i = 0; i < samples.size(); i++)
+                    for (register int j = 0; j < classCode; j++)
+                        if (    tmpMap[ tmpMapKeys[i] ]  == j      )
+                            (*sampleResult)(i,j) = 1;
+                        else
+                            (*sampleResult)(i,j) = 0;
+
+
+                cout <<"Number of collected samples: "<< sampleResult->size1() << endl;
+                tmpNode->computeClassification( sampleData, sampleResult, classifyData,  codeMap,  objCode);
+                tmpNode->setComputed();
+            }
+        }
+        else if   ( ( lNode->getSubNode(i)->getNodeType() == AND) || ( lNode->getSubNode(i)->getNodeType() == OR) )
+            computeMachineLearningClassification(  boost::dynamic_pointer_cast<LogicNode> ( lNode->getSubNode(i) ) ) ;
+    }
+}
+
+
 
 double OntologyClass::getClassMembershipValueForElement(int i) {
     return classMembershipValue[i];
@@ -85,9 +238,23 @@ void OntologyClass::estimateMembership() {
 
 
     Xaction.commit();
+    /*
+    //removing ontoindividuals from classification process
+    cout <<"size before: " << toClassify.size() << endl;
+     for (register unsigned int i = 0; i <  this->ontoIndividuals.size(); i++) {
+            int id = atoi( ontoIndividuals[i].c_str() ) ;
+         cout <<"removing : "<<id << endl;
+            toClassify.erase(std::remove(toClassify.begin(), toClassify.end(), id), toClassify.end());
+        }
+
+    cout <<"size after: " << toClassify.size() << endl;
+    */
 
     //computing cr features.
     computeCRFeatures( this->rootElement );
+    //compute machine learning training
+    computeMachineLearningClassification(this->rootElement);
+
 
     bool membershipValueChange = false;
     vector <string> columnNames;
@@ -105,13 +272,17 @@ void OntologyClass::estimateMembership() {
     double membershipValue = 1;
 
 
+    // #pragma omp parallel for  private(it, reg, membershipValue )
     for (  it = toClassify.begin(); it != toClassify.end(); it++ ) {
+        //TreeNode::curSegment = ontoData->curIDMap[*it];
         rootElement->valueEstimation( ontoData->curIDMap[*it] );
+        // cout <<"current Segment:"<<TreeNode::curSegment << endl;
         for ( reg = 0; reg < MotherClass.size(); reg++ ) {
             membershipValue = min ( (*ontoData->classMap)[MotherClass.at(reg)]->getClassMembershipValueForElement( *it), membershipValue);
         }
 
         if ( ( membershipValue >= 0.5 )  && ( getStatus() ) ) {
+            //cout <<*it <<"\t" <<rootElement->getMembershipValue()<< "\t" << membershipValue << endl;
             membershipValue = min (rootElement->getMembershipValue(), membershipValue);
 
             if (membershipValue >= 0.1) {
@@ -128,12 +299,33 @@ void OntologyClass::estimateMembership() {
             classMembershipValue[*it] = membershipValue;
         }
 
+        //uncomment if something weird happens for debugging
+        // cout <<TreeNode::curSegment <<"\t" << membershipValue << "\t" << ontoData->classificationLabel[TreeNode::curSegment] << endl;
         if  ( ( getCycleDepedency() ) && abs ( oldClassMembershipValue[*it] - membershipValue) > 0.00001 )
             membershipValueChange = true;
         //re-initializing the membership value
         membershipValue = 1;
     }
+    /*
+    for (register unsigned int i = 0; i <  this->ontoIndividuals.size(); i++) {
+        int id = atoi( ontoIndividuals[i].c_str() ) ;
+        //cout <<"examined id = " << id << endl;
+        //if ( ( classMembershipValue.find( id ) == classMembershipValue.end() ) || (classMembershipValue[ id] <= 0.5 ) ) {
+            //classMembershipValue.insert( pair<int, double>(id, 1.0) );
+            classMembershipValue[id] = 1.0;
+            classData.at(0) = to_string(ontoIndividuals[i]);
+            classData.at(1) = "1";
 
+            write.push_back(classData);
+            ontoData->classificationLabel[ id ] = this->className;
+            ontoData->maxMembership[ ontoData->curIDMap[ id ] ] = 1;
+
+        //}
+
+    }
+    */
+
+    //cout <<classMembershipValue.size() << endl;
     write.complete();
     update.commit();
     this->setComputed();
@@ -274,7 +466,6 @@ void OntologyClass::crFeatureCalculation( ClassRelatedFeatureNodePtr crNode ) {
                     " from "+crNode->getRelativeClassName()+ " a left join "  + *ontoData->tableName + " b on a." + *ontoData->gidColumn + " =b." + *ontoData->gidColumn + " order by " + *ontoData->gidColumn;
         } else if (crNode->getFeatureType() =="is_covered") {
             //query = "select distinct  c."+*ontoData->gidColumn + ", c.contained is_covered into "+tempstring+"  from (select * from (select "+*ontoData->gidColumn + " from " +  *ontoData->tableName + ") as a left join  (select o1."+*ontoData->gidColumn + "contained, 1 as contained  from objecthierarchy" + *ontoData->tableName + " o1, " + crNode->getRelativeClassName() + " c1 where c1."+*ontoData->gidColumn + " = o1."+*ontoData->gidColumn + " and c1."+crNode->getRelativeClassName()+"_membership >= 0.5) as b on   a."+*ontoData->gidColumn + " = b."+*ontoData->gidColumn + "contained) as c order by "+*ontoData->gidColumn + "";
-            cout << fromStr << endl;
             for (register int i = 0; i < (int) MotherClass.size(); i++ )
                 whereStr += MotherClass[i] + "." + *ontoData->gidColumn +  " = a." +*ontoData->gidColumn +  "contained and ";
             whereStr = whereStr.substr(0, whereStr.size()-4);

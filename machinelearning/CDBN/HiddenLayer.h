@@ -14,29 +14,38 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "fuzzyobjectproperty.h"
+#ifndef HIDDENLAYER_H
+#define HIDDENLAYER_H
 
-using namespace std;
+#include "functions.h"
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/io.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/numeric/ublas/assignment.hpp>
+#include <boost/random/binomial_distribution.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include "boost/random/variate_generator.hpp"
 
-FuzzyObjectProperty::FuzzyObjectProperty():  objectProperty(""), fuzzyDatatype ( FuzzyDatatypePtr(new FuzzyDatatype())) {}
-
-FuzzyObjectProperty::FuzzyObjectProperty(string property, FuzzyDatatypePtr fDType) :objectProperty(property), fuzzyDatatype(fDType) {}
-
-FuzzyObjectProperty::FuzzyObjectProperty(string property): objectProperty(property), fuzzyDatatype(FuzzyDatatypePtr(new FuzzyDatatype() ) ) {
-    fuzzyDatatype->setFunction("complement");
-}
-
-FuzzyObjectProperty::~FuzzyObjectProperty() {}
+typedef boost::numeric::ublas::matrix <double> matrix2d;
+typedef  boost::shared_ptr<boost::numeric::ublas::matrix <double > > matrix2dPtr;
 
 
-void FuzzyObjectProperty::setObjectPropertyType(std::string prop) {
-    objectProperty = prop;
-}
+class HiddenLayer {
+    matrix2dPtr inputData,  Weights, bias;
+    int nInputs, nOutputs;
 
-string FuzzyObjectProperty::getFeatureType(){
-    return objectProperty;
-}
+public:
 
-double FuzzyObjectProperty::calculateValue(double v) {
-    return fuzzyDatatype->calculateValue(v);
-}
+    HiddenLayer(matrix2dPtr, int, int, matrix2dPtr, matrix2dPtr);
+    void output(matrix2dPtr, matrix2dPtr);
+    void sample_h_given_v(matrix2dPtr, matrix2dPtr);
+    matrix2dPtr getWeights();
+    matrix2dPtr getBias();
+    int getOuts();
+
+    matrix2dPtr getSampleHGivenV(matrix2dPtr);
+};
+
+void testHl();
+
+#endif

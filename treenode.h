@@ -1,23 +1,19 @@
- /*
-    Part of the code of the SPatial Ontology Reasoner designed to reason over multi-scale GEOBIA Ontologies, as described in the following paper:
-    Argyridis A., Argialas, D., 2015. A Fuzzy Spatial Reasoner for Multi-Scale GEOBIA Ontologies, Photogrammetric Engineering and Remote Sesing, 41-48
-
-    Copyright (C) 2015  Argyros Argyridis
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+/*
+   Part of the code of the SPatial Ontology Reasoner designed to reason over multi-scale GEOBIA Ontologies, as described in the following paper:
+   Argyridis A., Argialas, D., 2015. A Fuzzy Spatial Reasoner for Multi-Scale GEOBIA Ontologies, Photogrammetric Engineering and Remote Sesing, 41-48
+   Copyright (C) 2015  Argyros Argyridis
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
- 
+
 #ifndef HIEARCHYNODE_H_INCLUDED
 #define HIEARCHYNODE_H_INCLUDED
 #include <vector>
@@ -28,7 +24,6 @@
 #include <stdlib.h>
 #include "fuzzyfunctions.h"
 #include <boost/shared_ptr.hpp>
-#include <boost/enable_shared_from_this.hpp>
 #include <pqxx/pqxx>
 
 extern const double AND_NODE_NULL;
@@ -36,14 +31,14 @@ extern const double OR_NODE_NULL;
 extern const double FEATURE_NODE_NULL;
 extern const double SUPERCLASS_NODE_NULL;
 extern const double COMPLEMENT_NODE_NULL;
+extern const double MACHINE_LEARNING_NODE_NULL;
 
-enum node_type {TREENODE = 0, FEATURE, CRFEATURE, LOGIC, AND, OR, SUPERCLASS, COMPLEMENT};
+enum node_type {TREENODE = 0, FEATURE, CRFEATURE, LOGIC, AND, OR, SUPERCLASS, COMPLEMENT, MACHINELEARNING};
 
 
 
 class TreeNode;
 typedef boost::shared_ptr<TreeNode> TreeNodePtr;
-
 class LogicNode;
 typedef boost::shared_ptr<LogicNode> LogicNodePtr;
 
