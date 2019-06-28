@@ -14,15 +14,15 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "ontologycontainer.h"
-#include "ontologyclass.h"
-#include "ontologyparser.h"
-#include "fuzzyevaluator.h"
+
+#include "ontologycontainer/ontologycontainer.hxx"
+#include "ontologyclass/ontologyclass.hxx"
+#include "ontologyparser/ontologyparser.hxx"
+#include "fuzzyevaluator/fuzzyevaluator.hxx"
 #include <ctime>
-#include <pqxx/pqxx>
+
 #include <iostream>
 using namespace std;
-using namespace pqxx;
 
 void help();
 
@@ -43,7 +43,6 @@ int main ( int argc, const char* argv[] ) {
         help();
         return  1;
     }
-
 
     fileName = argv[1];
     dbName    += argv[2];
@@ -69,8 +68,9 @@ int main ( int argc, const char* argv[] ) {
 
 }
 
+
 void help() {
-    cout<<"Parameter list: Ontology file, Database name, host name, user name, password, geometry table\n";
+    cout<<"Parameter list: ontology_file database_name host_name user_name password thing_table\n";
 }
 
 

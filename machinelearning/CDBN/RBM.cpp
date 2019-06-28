@@ -16,7 +16,7 @@
 
 #include <iostream>
 #include <math.h>
-#include "RBM.h"
+#include "RBM.hxx"
 #include <stdio.h>
 #include <stdlib.h>
 #include <boost/ptr_container/nullable.hpp>

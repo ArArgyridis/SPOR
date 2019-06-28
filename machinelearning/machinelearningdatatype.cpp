@@ -14,8 +14,8 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "machinelearningdatatype.h"
-#include "CDBN/CDBN.h"
+#include "machinelearningdatatype.hxx"
+#include "CDBN/CDBN.hxx"
 #include <iostream>
 #include <string>
 #include <fstream>

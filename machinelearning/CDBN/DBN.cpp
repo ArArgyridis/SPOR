@@ -14,8 +14,8 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "DBN.h"
-#include "CRBM.h"
+#include "DBN.hxx"
+#include "CRBM.hxx"
 #include <memory>
 
 using namespace std;

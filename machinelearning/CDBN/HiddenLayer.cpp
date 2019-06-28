@@ -16,7 +16,7 @@
 
 #include <iostream>
 
-#include "HiddenLayer.h"
+#include "HiddenLayer.hxx"
 
 using namespace std;
 using namespace boost::numeric::ublas;

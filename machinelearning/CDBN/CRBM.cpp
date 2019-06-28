@@ -14,7 +14,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "CRBM.h"
+#include "CRBM.hxx"
 
 using namespace std;
 using namespace boost::numeric::ublas;

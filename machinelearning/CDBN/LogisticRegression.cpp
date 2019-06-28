@@ -17,7 +17,7 @@
 #include <iostream>
 #include <string>
 #include <math.h>
-#include "LogisticRegression.h"
+#include "LogisticRegression.hxx"
 
 #include <stdio.h>
 #include <algorithm>
