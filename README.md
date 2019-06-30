@@ -11,8 +11,7 @@ https://ontohub.org/repositories/geobia-ontologies/ontologies/9893
 
 SPOR is distributed under GPL v3 or later.
 
-At current time SPOR is developed as a QtCreator project (qmake). At some point in the future it will be ported in cmake.
 
-SPOR depends on libpqxx (C++ interface of PostgreSQL), libxml2, and Boost.
+SPOR depends on libpqxx (C++ interface of PostgreSQL), libxml2, Boost and DLib for SVM and Deep Learning (to be added) classification.
 
 for further questions, please contact me at arargyridis at gmail  com 
