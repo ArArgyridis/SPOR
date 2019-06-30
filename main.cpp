@@ -14,14 +14,13 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
-#include "ontologycontainer/ontologycontainer.hxx"
-#include "ontologyclass/ontologyclass.hxx"
-#include "ontologyparser/ontologyparser.hxx"
-#include "fuzzyevaluator/fuzzyevaluator.hxx"
 #include <ctime>
-
 #include <iostream>
+#include "fuzzyevaluator/fuzzyevaluator.hxx"
+#include "ontologyclass/ontologyclass.hxx"
+#include "ontologycontainer/ontologycontainer.hxx"
+#include "ontologyparser/ontologyparser.hxx"
+
 using namespace std;
 
 void help();
