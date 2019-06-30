@@ -24,7 +24,7 @@ using namespace boost::numeric::ublas;
 
 HiddenLayer::HiddenLayer(matrix2dPtr  inp, int in, int out, matrix2dPtr W, matrix2dPtr b): inputData(inp), nInputs(in), nOutputs(out)  {
 
-    if (W == NULL) {
+    if (W == nullptr) {
         Weights = matrix2dPtr( new matrix2d( nInputs, nOutputs) );
         //float a = 1.0 /nInputs;
         float a = -4.0*sqrt(6.0 / (nInputs + nOutputs)  );
@@ -34,7 +34,7 @@ HiddenLayer::HiddenLayer(matrix2dPtr  inp, int in, int out, matrix2dPtr W, matri
     else
         Weights = W;
 
-    if (b == NULL) {
+    if (b == nullptr) {
         this->bias = matrix2dPtr( new matrix2d(nOutputs, 1 ) );
         for (iterator1 it1 = bias->begin1(); it1 != bias->end1(); it1++)
             for (iterator2 it2 = it1.begin(); it2 != it1.end();  it2++) {
@@ -54,7 +54,7 @@ matrix2dPtr HiddenLayer::getBias() {
 }
 
 matrix2dPtr HiddenLayer::getSampleHGivenV(matrix2dPtr inp) {
-    if (inp != NULL) inputData = inp;
+    if (inp != nullptr) inputData = inp;
     matrix2dPtr ret = matrix2dPtr (new matrix2d ( inputData->size1(), Weights->size2()  ) );
     sample_h_given_v(inputData, ret);
     return ret;
@@ -70,7 +70,7 @@ matrix2dPtr HiddenLayer::getWeights() {
 
 
 void HiddenLayer::output(matrix2dPtr input, matrix2dPtr output) {
-    if (input != NULL) inputData = input;
+    if (input != nullptr) inputData = input;
     *output = prod( *inputData, *Weights  )  ;
 
     for (iterator1 it1 = output->begin1(); it1 != output->end1(); it1++  )
@@ -82,7 +82,7 @@ void HiddenLayer::output(matrix2dPtr input, matrix2dPtr output) {
 
 void HiddenLayer::sample_h_given_v (matrix2dPtr in, matrix2dPtr out) {
 
-    if(in != NULL) inputData = in;
+    if(in != nullptr) inputData = in;
     //printMatrix("hidden layer sampling input", inputData);
     matrix2dPtr tmp = matrix2dPtr (new matrix2d ( out->size1(), out->size2() ) );
     output(inputData, tmp);
@@ -102,10 +102,10 @@ void testHl() {
 
     (*train_X) <<= 1,1,1, 0, 0, 0,1, 0, 1, 0, 0, 0,1, 1, 1, 0, 0, 0,0, 0, 1, 1, 1, 0,0, 0, 1, 1, 0, 0,0, 0, 1, 1, 1, 0;
 
-    HiddenLayer k = HiddenLayer( train_X, ncols, outs, NULL, NULL   );
+    HiddenLayer k = HiddenLayer( train_X, ncols, outs, nullptr, nullptr   );
 
     out =  matrix2dPtr ( new matrix2d(nrows, outs) );
-    k.sample_h_given_v(NULL, out);
-    k.output(NULL, out);
+    k.sample_h_given_v(nullptr, out);
+    k.output(nullptr, out);
     printMatrix("out", out);
 }

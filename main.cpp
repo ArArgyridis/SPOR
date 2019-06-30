@@ -27,10 +27,8 @@ using namespace std;
 void help();
 
 int main ( int argc, const char* argv[] ) {
-    //test_lr();
-
     //data required for the connection
-    string cn, fileName, dbName="dbname=", hostName, userName, password, thingTable;
+    string cn, fileName, dbName="dbname=", hostName, userName, password, schema, thingTable;
     //container to store information regarding the ontology
     OntologyParserPtr parser;
     OntologyDataPtr ontoData;
@@ -49,10 +47,11 @@ int main ( int argc, const char* argv[] ) {
     hostName = argv[3];
     userName = argv[4];
     password  = argv[5];
-    thingTable = argv[6];
-    //estimateStability = true;
+    schema = argv[6];
+    thingTable = argv[7];
+
     cn = dbName +" host="+ hostName + " user="+ userName + " password="+ password;
-    parser = OntologyParserPtr ( new OntologyParser( fileName, cn, thingTable ) );
+    parser = OntologyParserPtr ( new OntologyParser( fileName, cn, schema, thingTable ) );
 
     ontoData = parser->getOntologyData();
     ontoClassifier = OntologyContainerPtr ( new OntologyContainer ( ontoData, true, false ) );
@@ -60,17 +59,12 @@ int main ( int argc, const char* argv[] ) {
     eval->bestClassificationResult();
     eval->classificationStability();
     xmlCleanupMemory();
-
-    //test_crbm();
-    //test_cdbn();
     return 0;
-
-
 }
 
 
 void help() {
-    cout<<"Parameter list: ontology_file database_name host_name user_name password thing_table\n";
+    cout<<"Parameter list: ontology_file database_name host_name user_name password schema thing_table\n";
 }
 
 

@@ -18,17 +18,18 @@
 #define MACHINELEARNINGNODE_H
 
 #include "CDBN/CDBN.hxx"
+#include "SVM/svm.hxx"
+#include <dlib/svm_threaded.h>
 #include <iostream>
 #include <map>
 
-using namespace std;
 
 typedef std::shared_ptr<CDBN> CDBNPtr;
-
 
 class MachineLearningDatatype {
 protected:
     CDBNPtr DBN;
+    SVM svm;
     std::string method;
     int epochs, gibbsIterations, supervisedEpochs;
     double leariningRate, learningCoef, supervisedRate, supervisedRateCoef;
@@ -37,24 +38,29 @@ protected:
     bool computed;
     matrix2dPtr output;
     std::map<std::string, int> classColumnMap;
-    vector<int> classificationObjectID, network;
+    std::map<std::string, std::string> attributeMap;
+    std::vector<int> classificationObjectID, network;
 
 public:
 
     void addEmployedClass(std::string);
+    std::string getAttributeValue(std::string& name);
     int getClassificationObjectID(int);
     int getClassPosition(std::string);
     bool getComputed();
     std::string* getEmployedClass(int);
     std::string* getFeature(int);
+    std::string getMethod();
     int getNumberOfEmployedClasses();
     int getNumberOfFeatures();
     MachineLearningDatatype();
     MachineLearningDatatype(std::string, std::string, std::string, double, double, int, int , double, double, int );
+    MachineLearningDatatype(std::string& methodName, std::map<std::string, std::string>& attributes );
     void mlComputation(matrix2dPtr, matrix2dPtr, matrix2dPtr, std::vector<int>);
+    void mlComputation(SampleVector& samples, LabelTypeVector& labels,  SampleVector& classifyData, std::vector<int>& labelVector);
     matrix2dPtr getOutput();
     void setComputed();
-    void setClassColumnMap(std::map<std::string, int>);
+    void setClassColumnMap(std::map<std::string, int>&);
     matrix2dPtr samplesOutput;
 };
 

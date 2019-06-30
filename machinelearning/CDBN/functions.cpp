@@ -42,7 +42,7 @@ void printMatrix(string str, matrix2dPtr mat) {
 
     cout <<"Array: " << str << endl;
     if (mat == nullptr)
-        cout <<" NULL ARRAY\n";
+        cout <<" nullptr ARRAY\n";
     else {
         for (iterator1 it1 = mat->begin1(); it1 !=mat->end1(); it1++) {
             for (iterator2 it2 = it1.begin(); it2 != it1.end(); it2++)
@@ -58,8 +58,8 @@ void printMatrix(string str, matrix2dPtr mat) {
 void writeMatrix(string filename, matrix2dPtr mat) {
 
     ofstream file (filename);
-    if (mat == NULL)
-        file <<" NULL ARRAY\n";
+    if (mat == nullptr)
+        file <<" nullptr ARRAY\n";
     else {
         int i = 0;
         for (iterator1 it1 = mat->begin1(); it1 !=mat->end1(); it1++) {
@@ -139,8 +139,8 @@ void sigmoidArray(matrix2dPtr input, matrix2dPtr output) {
 void printMatrix(string str, matrix2dPtr mat) {
 
     cout <<"Array: " << str << endl;
-    if (mat == NULL)
-        cout <<" NULL ARRAY\n";
+    if (mat == nullptr)
+        cout <<" nullptr ARRAY\n";
     else {
         for (iterator1 it1 = mat->begin1(); it1 !=mat->end1(); it1++) {
             for (iterator2 it2 = it1.begin(); it2 != it1.end(); it2++)

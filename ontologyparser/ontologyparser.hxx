@@ -28,7 +28,7 @@
 
 class OntologyParser {
     OntologyDataPtr ontoData;
-    std::string *selectStr;
+    std::string selectStr;
     std::string changeTags( std::string* );
     std::string ontoPropValue(xmlNodePtr, std::string);
 
@@ -42,7 +42,7 @@ public:
     void addOntologyHierarchy( xmlNodePtr );
     OntologyDataPtr getOntologyData();
     OntologyParser();
-    OntologyParser( std::string, std::string, std::string );
+    OntologyParser( std::string& ontologyFile, std::string& cn, std::string& schema, std::string& tbl);
     ~OntologyParser();
 };
 

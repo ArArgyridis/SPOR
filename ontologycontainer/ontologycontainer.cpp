@@ -84,20 +84,21 @@ void OntologyContainer::dropCRTables() {
 
 void OntologyContainer::establishConnection(bool computeTopology, bool recomputeTopology) {
     //connecting to the database
-    pqxx::connection Conn( *ontoData->connectionParameter );
+    pqxx::connection Conn( ontoData->connectionParameter );
     //creating a new work
     work Xaction(Conn,"retrieving segments and computing topology");
     //retrieving primary key column name
-    string query = "SELECT  pg_attribute.attname FROM pg_index, pg_class, pg_attribute WHERE   pg_class.relname = '" +  *ontoData->tableName + "' AND  indrelid = pg_class.oid AND   pg_attribute.attrelid = pg_class.oid AND pg_attribute.attnum = any(pg_index.indkey)   AND indisprimary;";
+    string query = "SELECT  pg_attribute.attname FROM pg_index, pg_class, pg_attribute, pg_catalog.pg_namespace n WHERE   n.nspname || '.' || pg_class.relname = '" +  ontoData->tableName + "' AND  indrelid = pg_class.oid AND   pg_attribute.attrelid = pg_class.oid AND pg_attribute.attnum = ANY(pg_index.indkey)   AND indisprimary  AND  n.oid = pg_class.relnamespace;";
+
     pqxx::result res = Xaction.exec(query);
-    *ontoData->gidColumn = (string)to_string( res[0][0] );
+    ontoData->gidColumn = (string)to_string( res[0][0] );
     //retrieving geometry column name
-    query = "select f_geometry_column from geometry_columns where type='POLYGON' and f_table_name='"  + *ontoData->tableName + "';";
+    query = "select f_geometry_column from geometry_columns where type='POLYGON' and f_table_name='"  + ontoData->tableName + "';";
     res = Xaction.exec(query);
-    *ontoData->geomColumn = (string)to_string( res[0][0]);
+    ontoData->geomColumn = (string)to_string( res[0][0]);
 
     //retrieving segments for the respective
-    query = "select " + *ontoData->gidColumn  +  *ontoData->selectStr +  " from "+  *ontoData->tableName +" order by " + *ontoData->gidColumn +  " ;";
+    query = "select " + ontoData->gidColumn  +  ontoData->selectStr +  " from "+  ontoData->tableName +" order by " + ontoData->gidColumn +  " ;";
     result tempSegments = Xaction.exec(query);
     TreeNode::addSegments( tempSegments );
     *ontoData->segNumber = ( int )tempSegments.size();
@@ -105,10 +106,11 @@ void OntologyContainer::establishConnection(bool computeTopology, bool recompute
 
     cout << "Total number of elements in the database : \t" << *ontoData->segNumber << endl;
 
-    generateTopology( computeTopology, recomputeTopology );
+    if (!ontoData->geomColumn.empty() )
+        generateTopology( computeTopology, recomputeTopology );
+
     //setting working path
     setPath();
-
 }
 
 void OntologyContainer::generateTopology(bool computeTopology, bool recomputeTopology) {
@@ -120,43 +122,43 @@ void OntologyContainer::generateTopology(bool computeTopology, bool recomputeTop
         cout <<"Generating per level topology\n";
 
         //connecting to the database
-        pqxx::connection Conn(*ontoData->connectionParameter);
+        pqxx::connection Conn(ontoData->connectionParameter);
         //crete new work
         work Xaction(Conn,"topology connection");
 
-        cout<<"Computing topology for "<< *ontoData->tableName << endl;
-        *ontoData->neighborTblName = "neighbors" +  (*ontoData->tableName);
+        cout<<"Computing topology for "<< ontoData->tableName << endl;
+        ontoData->neighborTblName = "neighbors" +  (ontoData->tableName);
         //checking if the neighbors table exists in the database
-        string query = "select  tablename from pg_tables where schemaname='public' and  tablename= '" + *ontoData->neighborTblName  + "';";
+        string query = "select  tablename from pg_tables where schemaname='public' and  tablename= '" + ontoData->neighborTblName  + "';";
 
         result res = Xaction.exec(query);
 
         if (res.empty()) { // if not topology computation takes place
-            string *neighborTblid = ontoData->gidColumn;
-            string *neighborTblidNeigh = new string( *ontoData->gidColumn + "neigh" );
-            query = "select k1." + *ontoData->gidColumn + " as " + *neighborTblid +  ", k2. " + *ontoData->gidColumn + " as " + *neighborTblidNeigh + ", st_length(st_intersection( k1. "+ *ontoData->geomColumn +", k2." + *ontoData->geomColumn +") ) length "
-                    "into  " + *ontoData->neighborTblName + " from " + *ontoData->tableName  + " k1 inner join " + *ontoData->tableName  + " k2 on k1.level=k2.level  and k1.geom && k2.geom and k1.id !=k2.id order by k1.id; ";
+            string neighborTblid = ontoData->gidColumn;
+            string neighborTblidNeigh =  ontoData->gidColumn + "neigh";
+            query = "select k1." + ontoData->gidColumn + " as " + neighborTblid +  ", k2. " + ontoData->gidColumn + " as " + neighborTblidNeigh + ", st_length(st_intersection( k1. "+ ontoData->geomColumn +", k2." + ontoData->geomColumn +") ) length "
+                    "into  " + ontoData->neighborTblName + " from " + ontoData->tableName  + " k1 inner join " + ontoData->tableName  + " k2 on k1.level=k2.level  and k1.geom && k2.geom and k1.id !=k2.id order by k1.id; ";
             Xaction.exec(query);
-            query = "CREATE INDEX neighbors"+ *ontoData->tableName+"_neighbor_idx ON " + *ontoData->neighborTblName +"("+*ontoData->gidColumn + ")";
+            query = "CREATE INDEX neighbors"+ ontoData->tableName+"_neighbor_idx ON " + ontoData->neighborTblName +"("+ontoData->gidColumn + ")";
             Xaction.exec(query);
         }
 
         //checking if the centroid table exists in the database
-        query = "select  tablename from pg_tables where schemaname='public' and  tablename='centroid" +  *ontoData->tableName + "';";
+        query = "select  tablename from pg_tables where schemaname='public' and  tablename='centroid" +  ontoData->tableName + "';";
         res = Xaction.exec(query);
 
         if (res.empty()) { // if not centroid computation takes place
-            query = "select "+*ontoData->gidColumn + ", st_centroid(" + *ontoData->geomColumn+ ") as centroid into centroid" +  *ontoData->tableName + " from " + *ontoData->tableName + ";";
+            query = "select "+ontoData->gidColumn + ", st_centroid(" + ontoData->geomColumn+ ") as centroid into centroid" +  ontoData->tableName + " from " + ontoData->tableName + ";";
             Xaction.exec(query);
         }
 
         cout <<"\nComputing Object-Subobject hierarchical structure\n";
-        query = "select  tablename from pg_tables where schemaname='public' and  tablename='objecthierarchy" +  *ontoData->tableName + "';";
+        query = "select  tablename from pg_tables where schemaname='public' and  tablename='objecthierarchy" +  ontoData->tableName + "';";
         res = Xaction.exec(query);
         if(res.empty()){
             //ofstream file("obj-subobj");
             //st_intersects with st_buffer seem to work better than st_contains
-            query = " select o1."+ *ontoData->gidColumn + ", o2."+ *ontoData->gidColumn + " as "+ *ontoData->gidColumn + "contained, o1.level-o2.level as distance, st_area(o2."+ *ontoData->geomColumn +")/st_area(o1."+ *ontoData->geomColumn +") as relative_area_" + *ontoData->gidColumn + "contained_"+ *ontoData->gidColumn + "  into objecthierarchy" + *ontoData->tableName +  " from "+ *ontoData->tableName + " o1, " + *ontoData->tableName +  " o2 where  o1.level>o2.level and o1."+ *ontoData->geomColumn + " && o2."+ *ontoData->geomColumn + " and st_intersects (o1."+ *ontoData->geomColumn + ", st_buffer(o2."+ *ontoData->geomColumn + ", -0.0001) )=true;";
+            query = " select o1."+ ontoData->gidColumn + ", o2."+ ontoData->gidColumn + " as "+ ontoData->gidColumn + "contained, o1.level-o2.level as distance, st_area(o2."+ ontoData->geomColumn +")/st_area(o1."+ ontoData->geomColumn +") as relative_area_" + ontoData->gidColumn + "contained_"+ ontoData->gidColumn + "  into objecthierarchy" + ontoData->tableName +  " from "+ ontoData->tableName + " o1, " + ontoData->tableName +  " o2 where  o1.level>o2.level and o1."+ ontoData->geomColumn + " && o2."+ ontoData->geomColumn + " and st_intersects (o1."+ ontoData->geomColumn + ", st_buffer(o2."+ ontoData->geomColumn + ", -0.0001) )=true;";
             //file << query;
             //file.close();
             Xaction.exec(query);
@@ -164,16 +166,16 @@ void OntologyContainer::generateTopology(bool computeTopology, bool recomputeTop
 
         else { //otherwise topology computation occurs only if the topology is meant to be recomputed
             if (recomputeTopology == true) { //NEEEDS TO BE REPLACEEEED!!!!!!
-                query = "drop table if exists neighbors"+ *ontoData->neighborTblName;
+                query = "drop table if exists neighbors"+ ontoData->neighborTblName;
                 Xaction.exec(query);
 
-                query = "select k1."+*ontoData->gidColumn + ", k2."+*ontoData->gidColumn + " as "+*ontoData->gidColumn + "neigh, st_length((st_intersection(k1."+ *ontoData->geomColumn + ", k2." + *ontoData->geomColumn + ")))/st_length(st_boundary(k1." + *ontoData->geomColumn + ") ) as relative_border_" + *ontoData->gidColumn + "_" + *ontoData->gidColumn + "neigh  into  neighbors" + *ontoData->tableName +" from "+ *ontoData->tableName+" k1, "+ *ontoData->tableName+" k2 where k1."+ *ontoData->geomColumn + " && k2." + *ontoData->geomColumn+ " and k1 !=k2 and k1.level=k2.level order by k1." + *ontoData->gidColumn + ";";
+                query = "select k1."+ontoData->gidColumn + ", k2."+ontoData->gidColumn + " as "+ontoData->gidColumn + "neigh, st_length((st_intersection(k1."+ ontoData->geomColumn + ", k2." + ontoData->geomColumn + ")))/st_length(st_boundary(k1." + ontoData->geomColumn + ") ) as relative_border_" + ontoData->gidColumn + "_" + ontoData->gidColumn + "neigh  into  neighbors" + ontoData->tableName +" from "+ ontoData->tableName+" k1, "+ ontoData->tableName+" k2 where k1."+ ontoData->geomColumn + " && k2." + ontoData->geomColumn+ " and k1 !=k2 and k1.level=k2.level order by k1." + ontoData->gidColumn + ";";
                 Xaction.exec(query);
-                query = "CREATE INDEX neighbors"+ *ontoData->tableName+"_neighbor_idx ON neighbors"+ *ontoData->tableName+"("+*ontoData->gidColumn + ")";
+                query = "CREATE INDEX neighbors"+ ontoData->tableName+"_neighbor_idx ON neighbors"+ ontoData->tableName+"("+ontoData->gidColumn + ")";
                 Xaction.exec(query);
-                query = "drop table if exists centroid"+ *ontoData->tableName;
+                query = "drop table if exists centroid"+ ontoData->tableName;
                 Xaction.exec(query);
-                query = "select "+*ontoData->gidColumn + ", st_centroid(" + *ontoData->geomColumn+ ") as centroid into centroid" + *ontoData->tableName + " from " +  *ontoData->tableName + ";";
+                query = "select "+ontoData->gidColumn + ", st_centroid(" + ontoData->geomColumn+ ") as centroid into centroid" + ontoData->tableName + " from " +  ontoData->tableName + ";";
                 Xaction.exec(query);
             }
         }
@@ -204,15 +206,16 @@ void OntologyContainer::labelSegment() {
 
     //droping classification table if exists;
 
-    string updateQuery="drop table if exists  final_classification_" + *ontoData->tableName + ";";
+    string updateQuery="DROP TABLE IF EXISTS " +  ontoData->tableName + "_final_classification;";
     Xaction.exec(updateQuery);
 
-    updateQuery="create table IF NOT EXISTS final_classification_" + *ontoData->tableName + "("+*ontoData->gidColumn + " int, class_name text);";
+    updateQuery="CREATE TABLE IF NOT EXISTS " + ontoData->tableName + "_final_classification ("+ontoData->gidColumn + " int, class_name text);";
     Xaction.exec(updateQuery);
     vector<string> columnNames;
-    columnNames.push_back(""+*ontoData->gidColumn + "");
+
+    columnNames.push_back(""+ontoData->gidColumn + "");
     columnNames.push_back("class_name");
-    tablewriter write(Xaction, "final_classification_"  + *ontoData->tableName, columnNames.begin(), columnNames.end() );
+    tablewriter write(Xaction,  ontoData->tableName +"_final_classification", columnNames.begin(), columnNames.end() );
     vector<string>classData;
 
     for (register int j = 0; j < *ontoData->segNumber; j++) {
@@ -223,18 +226,18 @@ void OntologyContainer::labelSegment() {
     }
 
     write.complete();
+
     Xaction.commit();
 }
 
-
-void OntologyContainer::setConnectionParameters(string *con, string *tbl){
+void OntologyContainer::setConnectionParameters(string &con, string &tbl){
     ontoData->connectionParameter = con;
     ontoData->tableName = tbl;
 }
 
 //getting currend working path
 void OntologyContainer::setPath() {
-    char *k = NULL;
+    char *k = nullptr;
     k = getcwd( k, MAXPATHLEN );
     string path = string( k );
 }

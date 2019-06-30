@@ -26,7 +26,16 @@ void MachineLearningNode::computeClassification(matrix2dPtr inputSamples, matrix
     datatype->setClassColumnMap(clColMap);
 }
 
+void MachineLearningNode::computeClassification(SampleVector &samples, LabelTypeVector &labels, SampleVector &classifyData, map<string, int> &codeMap, vector<int> &idVector) {
+    datatype->mlComputation(samples, labels, classifyData, idVector);
+    datatype->setClassColumnMap(codeMap);
+}
+
 void MachineLearningNode::forceNULLMembershipValue( ) {}
+
+string MachineLearningNode::getAttributeValue(string &value) {
+    return datatype->getAttributeValue(value);
+}
 
 bool MachineLearningNode::getComputed() {
     return datatype->getComputed();
@@ -36,11 +45,18 @@ string* MachineLearningNode::getEmployedClass(int pos) {
     return datatype->getEmployedClass(pos);
 }
 
-
 string* MachineLearningNode::getFeature(int pos) {
     return datatype->getFeature(pos);
 }
 
+string MachineLearningNode::getLabelColumn() {
+    string val = "label_column";
+    return datatype->getAttributeValue(val);
+}
+
+string MachineLearningNode::getNodeMethod() {
+    return datatype->getMethod();
+}
 
 int MachineLearningNode::getNumberOfEmployedClasses () {
     return datatype->getNumberOfEmployedClasses();

@@ -14,16 +14,22 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "machinelearningdatatype.hxx"
-#include "CDBN/CDBN.hxx"
-#include <iostream>
+
 #include <string>
 #include <fstream>
+#include <iostream>
+
+#include "machinelearningdatatype.hxx"
+#include "CDBN/CDBN.hxx"
 using namespace std;
 
 
 void MachineLearningDatatype::addEmployedClass(string cName) {
     employedClass.push_back(cName);
+}
+
+string MachineLearningDatatype::getAttributeValue(string &name) {
+    return attributeMap[name];
 }
 
 int MachineLearningDatatype::getClassPosition(string cName) {
@@ -52,6 +58,10 @@ std::string* MachineLearningDatatype::getFeature(int pos) {
     return &features[pos];
 }
 
+std::string MachineLearningDatatype::getMethod() {
+    return method;
+}
+
 int MachineLearningDatatype::getNumberOfEmployedClasses() {
     return employedClass.size();
 }
@@ -61,19 +71,19 @@ int MachineLearningDatatype::getNumberOfFeatures() {
 }
 
 matrix2dPtr MachineLearningDatatype::getOutput() {
-    return this->output;
+    return output;
 }
 
 MachineLearningDatatype::MachineLearningDatatype(){}
 
-
-MachineLearningDatatype::MachineLearningDatatype (string mtd, string strNet, string fts, double lr, double lrCoef, int epchs, int k, double supLR, double supLRCoef, int supEp): computed(false), method(mtd),
+MachineLearningDatatype::MachineLearningDatatype (string methodName, string strNet, string fts, double lr, double lrCoef, int epchs, int k, double supLR, double supLRCoef, int supEp): computed(false), method(methodName),
 leariningRate(lr), learningCoef(lrCoef), epochs(epchs), gibbsIterations(k), supervisedRate(supLR), supervisedRateCoef(supLRCoef), supervisedEpochs(supEp){
     if (fts.size() > 0) {
         stringstream ss(fts);
         string item;
-        while (getline (ss, item, ',') )
+        while (getline (ss, item, ',') ) {
             features.push_back(item);
+        }
     }
 
     string item;
@@ -83,14 +93,23 @@ leariningRate(lr), learningCoef(lrCoef), epochs(epchs), gibbsIterations(k), supe
     }
 }
 
-void MachineLearningDatatype::setClassColumnMap(std::map<string, int> cMap) {
+MachineLearningDatatype::MachineLearningDatatype(string &methodName, std::map<string, string> &attributes): computed(false), method(methodName), attributeMap(attributes) {
+    if (attributes["feature_space"].size() > 0) {
+        stringstream ss(attributes["feature_space"]);
+        string item;
+        while (getline (ss, item, ',') ) {
+            features.push_back(item);
+        }
+    }
+}
+
+void MachineLearningDatatype::setClassColumnMap(std::map<string, int> &cMap) {
     classColumnMap = cMap;
 }
 
 void MachineLearningDatatype::setComputed() {
     computed = true;
 }
-
 
 void MachineLearningDatatype::mlComputation(matrix2dPtr inputSamples, matrix2dPtr outputSamples, matrix2dPtr classifyData, vector<int> objID ) {
 
@@ -99,16 +118,30 @@ void MachineLearningDatatype::mlComputation(matrix2dPtr inputSamples, matrix2dPt
     if (method == "DBN") {
         CDBN cdbn(inputSamples, outputSamples, inputSamples->size2(), network, outputSamples->size2() );
         std :: cout << "starting DBN training\n";
-        //cdbn.pretrain(0.0001, 3, 1000);
         cdbn.pretrain(leariningRate, learningCoef, gibbsIterations, epochs);
-        double finetuneLR = 0.5, finetuneCoef = 0.95;
-        int f_epochs = 2000;
-        //cdbn.finetuning(  finetuneLR, finetuneCoef, f_epochs  );
         cdbn.finetuning( supervisedRate, supervisedRateCoef, supervisedEpochs );
         std :: cout <<"DBN training finished\n";
         samplesOutput = cdbn.predict(inputSamples);
         output = cdbn.predict( classifyData );
         writeMatrix("output", samplesOutput);
         //printMatrix("final output", output);
+    }
+}
+
+void MachineLearningDatatype::mlComputation(SampleVector &samples, LabelTypeVector &labels, SampleVector &classifyData, std::vector<int> &labelVector) {
+    classificationObjectID = labelVector;
+    if(method == "SVM") {
+        svm = SVM(samples, labels);
+        LabelTypeVector outLabels;
+        svm.predict(classifyData, outLabels);
+        int numberOfClasses = getNumberOfEmployedClasses();
+        output = matrix2dPtr(new matrix2d(outLabels.size(), numberOfClasses));
+        for (int i = 0; i < outLabels.size(); i++) {
+            for (int j = 0; j < numberOfClasses; j++)
+                if(outLabels[i] == j)
+                    (*output)(i, j) = 1;
+                else
+                    (*output)(i, j) = 0;
+        }
     }
 }

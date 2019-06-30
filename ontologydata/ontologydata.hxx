@@ -52,11 +52,11 @@ class OntologyData {
     MachineLearningDatatypeMapTypePtr machineLearningDatatypeMap; //maping machine learning nodes based on their name
 
     std::vector<std::string> selectVec;
-    std::vector<std::string> *objectPropertyVector; //the names of all the class related properties used in the ontology
+    std::vector<std::string> objectPropertyVector; //the names of all the class related properties used in the ontology
     std::string ontologyFile;     //ontology file
     ClassMapTypePtr classMap;
     int *segNumber;
-    std::string  *connectionParameter,  *gidColumn, *geomColumn, *neighborTblName, *neighborTblid, *neighborTblidNeigh, *ontologyIRI, *selectStr,  *tableName; //, fuzzyOwlDatatypeProperties[];
+    std::string  connectionParameter,  gidColumn, geomColumn, neighborTblName, neighborTblid, neighborTblidNeigh, ontologyIRI, selectStr, schema,  tableName;
     pqxx::connection *Conn;
     double *maxMembership;
     std::map<int, int> curIDMap;

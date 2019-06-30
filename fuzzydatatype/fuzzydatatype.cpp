@@ -21,7 +21,7 @@ using namespace std;
 
 ///:~ FuzzyDatatype Methods//////////////////////////////////////////////////////////////
 
-FuzzyDatatype::FuzzyDatatype():parNum(0), fuzzyInput(NULL){}
+FuzzyDatatype::FuzzyDatatype():parNum(0), fuzzyInput(nullptr){}
 
 FuzzyDatatype::FuzzyDatatype(string funCode, double *finput):parNum(0) {
     setFunction(funCode);

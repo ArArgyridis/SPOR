@@ -23,22 +23,22 @@ class MachineLearningNode: public TreeNode {
     int curMLObject; //helping variable to know which entry in the classification result is next
     std:: string propertyName;
 
-
-
 protected:
 
     void forceNULLMembershipValue();
     void resetMembershipValue();
     void valueEstimation(int);
 
-
-
 public:
     MachineLearningNode(std::string, MachineLearningDatatypePtr);
-    void computeClassification(matrix2dPtr, matrix2dPtr, matrix2dPtr, std::map<std::string, int>, vector<int> );
+    void computeClassification(matrix2dPtr, matrix2dPtr, matrix2dPtr, std::map<std::string, int>, std::vector<int> );
+    void computeClassification(SampleVector& samples, LabelTypeVector& labels, SampleVector& classifyData, std::map<std::string, int>& codeMap, std::vector<int>& idVector);
     bool getComputed();
     std::string* getEmployedClass(int);
     std::string* getFeature(int);
+    std::string getAttributeValue(std::string& value);
+    std::string getLabelColumn();
+    std::string getNodeMethod();
     int getNumberOfEmployedClasses();
     int getNumberOfFeatures();
     void setComputed();

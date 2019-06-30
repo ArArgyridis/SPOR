@@ -25,33 +25,18 @@ OntologyData::OntologyData() {
     classMap =  ClassMapTypePtr ( new ClassMapType );
     classRelatedDBTable = new vector<string>;
     //classificationLabel = new string;
-    connectionParameter = new string;
     fuzzyDatatypeMap = DataTypeMapTypePtr( new DatatypeMapType ); //maping datatypes with their name
     fuzzyObjectTypeMap = ObjectTypeMapTypePtr  ( new ObjectTypeMapType ); //maping object types with their name
     machineLearningDatatypeMap = MachineLearningDatatypeMapTypePtr (new MachineLearningDatatypeMapType);
-     gidColumn = new string;
-     geomColumn  = new string;
-     neighborTblName  = new string;
-     neighborTblid  = new string;
-     neighborTblidNeigh = new string;
-
-     objectPropertyVector = new vector<string> ;
      segNumber = new int;
-     selectStr = new string;
      superClassNodeMap = SuperClassNodeMapTypePtr ( new SuperClassNodeMapType ); //maping superclass nodes based on superclass name
-     tableName  = new string;
 
 
 }
 
 OntologyData::~OntologyData() {
     //delete[] classificationLabel;
-    delete gidColumn;
-    delete geomColumn;
-    delete neighborTblid;
-    delete neighborTblName;
-    delete neighborTblidNeigh;
-    delete[] maxMembership;
+
+    delete maxMembership;
     delete segNumber;
-    delete selectStr;
 }

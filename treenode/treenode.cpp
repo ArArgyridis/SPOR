@@ -34,17 +34,13 @@ string TreeNode::curClass;
 ///:~ TreeNode Methods /////////////////////////////////////////////////////
 TreeNode::TreeNode(): membershipValue(TREE_NODE_NULL),  isEstimated(false) {}
 
-TreeNode::TreeNode(double mv, bool est, int type): membershipValue(mv), isEstimated(est), nodeType(type), parentNode(NULL){}
-
-
-
+TreeNode::TreeNode(double mv, bool est, int type): membershipValue(mv), isEstimated(est), nodeType(type), parentNode(nullptr){}
 
 TreeNode::~TreeNode() {}
 
 void TreeNode::setCurClass(string cName) {
     curClass = cName;
 }
-
 
 void TreeNode::setNodeType(int ntype) {
     nodeType = ntype;
@@ -73,9 +69,3 @@ int TreeNode::getNodeType() {
 result TreeNode::getSegments() {
     return segmentsResult;
 }
-
-
-
-
-
-

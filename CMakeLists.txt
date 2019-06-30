@@ -2,13 +2,16 @@ cmake_minimum_required(VERSION 2.8)
 
 project(SPOR)
 
-#add_definitions(-Wall -g -std=c++11)
+add_definitions(-Wall -g -std=c++11 -DPQXX_HIDE_EXP_OPTIONAL)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3  -lxml2 -lpqxx -fopenmp")
 
-SET (PQXX_DIR .)
-SET (POSTGRES_DIR .)
+set (PQXX_DIR .)
+set (POSTGRES_DIR .)
+set(DLIB_DIR .)
 
 find_package(LibXml2 REQUIRED)
 find_package(PQXX REQUIRED)
+find_package(dlib REQUIRED)
 
 if (LIBXML2_FOUND)
     include_directories(${LIBXML2_INCLUDE_DIR})
@@ -22,8 +25,6 @@ find_package(Boost REQUIRED)
 if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
 endif()
-
-
 
 set(SOURCE
     ${CMAKE_CURRENT_SOURCE_DIR}/andnode/andnode.cpp
@@ -44,6 +45,7 @@ set(SOURCE
     ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/CDBN/DBN.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/CDBN/LogisticRegression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/CDBN/RBM.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/SVM/svm.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/machinelearningnode/machinelearningnode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ontologyclass/ontologyclass.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ontologycontainer/ontologycontainer.cpp
@@ -65,7 +67,6 @@ set (HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/fuzzyobjectproperty/fuzzyobjectproperty.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/helperfunctions/helperfunctions.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/logicnode/logicnode.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/machinelearningmethod.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/machinelearningdatatype.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/CDBN/HiddenLayer.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/CDBN/CDBN.hxx
@@ -74,6 +75,7 @@ set (HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/CDBN/DBN.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/CDBN/LogisticRegression.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/CDBN/RBM.hxx
+    ${CMAKE_CURRENT_SOURCE_DIR}/machinelearning/SVM/svm.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/machinelearningnode/machinelearningnode.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/ontologyclass/ontologyclass.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/ontologycontainer/ontologycontainer.hxx
@@ -84,7 +86,6 @@ set (HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/treenode/treenode.hxx
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3  -lxml2 -lpqxx -fopenmp")
 
 add_executable(${PROJECT_NAME} ${SOURCE} ${HEADERS} "main.cpp")
-target_link_libraries(${PROJECT_NAME}  ${LIBXML2_LIBRARIES} ${PQXX_LIBRARIES} ${Boost_LIBRARIES} )
+target_link_libraries(${PROJECT_NAME}  ${LIBXML2_LIBRARIES} ${PQXX_LIBRARIES} ${Boost_LIBRARIES}  dlib::dlib)

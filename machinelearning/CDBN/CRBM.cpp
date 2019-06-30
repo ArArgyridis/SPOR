@@ -103,7 +103,7 @@ void test_crbm() {
     //create RBM
     CRBM rbm (train_X, ncols, nHidden, asd, asd, asd);
     //train RBM
-    rbm.contrastive_divergence(k, training_epochs, learning_rate, coef, NULL, true );
+    rbm.contrastive_divergence(k, training_epochs, learning_rate, coef, nullptr, true );
     //reconstruct
     matrix2dPtr out;
 

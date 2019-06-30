@@ -50,7 +50,7 @@ public:
 
     void resetPosition();
 
-    void setCResult(pqxx::connection*, std::string*, std::string*);
+    void setCResult(pqxx::connection*, std::string& tableName, std::string& gidColumn);
 
     void setFeatureType(std::string);
 

@@ -23,7 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../fuzzyfunctions/fuzzyfunctions.hxx"
-#include <boost/shared_ptr.hpp>
 #include <pqxx/pqxx>
 
 extern const double AND_NODE_NULL;

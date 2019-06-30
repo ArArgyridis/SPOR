@@ -50,7 +50,7 @@ public:
     OntologyContainer();
     OntologyContainer( OntologyDataPtr, bool, bool );
     ~OntologyContainer();
-    void setConnectionParameters(std::string*, std::string*);
+    void setConnectionParameters(std::string& con, std::string& tbl);
 
 };
 

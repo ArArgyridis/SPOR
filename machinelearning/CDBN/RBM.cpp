@@ -63,7 +63,7 @@ RBM::RBM(matrix2dPtr trainData, int visible, int hiddenLayers, matrix2dPtr w, ma
     n_inputs = trainData->size1();
     type = typeRBM;
 
-    if ( w != NULL ) {
+    if ( w != nullptr ) {
         Weights = w;
     }
     else {
@@ -72,7 +72,7 @@ RBM::RBM(matrix2dPtr trainData, int visible, int hiddenLayers, matrix2dPtr w, ma
         uniformArray(Weights, -a, a);
 
     }
-    if (hb != NULL) {
+    if (hb != nullptr) {
         hBias = hb;
         //cout <<"hBias added\n";
     }
@@ -82,7 +82,7 @@ RBM::RBM(matrix2dPtr trainData, int visible, int hiddenLayers, matrix2dPtr w, ma
             (*hBias)(i,0) = 0;
     }
 
-    if (vb !=NULL)
+    if (vb !=nullptr)
         vBias = vb;
     else {
         vBias =  matrix2dPtr ( new matrix2d (n_visible, 1)    );
@@ -156,7 +156,7 @@ void RBM::getCostUpdates( double lr, matrix2dPtr per, int k ) {
 
 
 void RBM::contrastive_divergence(int k, int epochs, double lr, double lrCoef,  matrix2dPtr inp, bool persistent) {
-    if (inp != NULL) trainData = inp;
+    if (inp != nullptr) trainData = inp;
 
     //printMatrix("initial RBM Weights", Weights);
     matrix2dPtr phMean     = matrix2dPtr(new matrix2d ( n_inputs, n_hidden ) );
@@ -324,8 +324,8 @@ void test_rbm() {
     (*test_X)<<= 1,1, 0, 0, 0, 0,
             0, 0, 0, 1, 1, 0;
     //create RBM
-    RBM rbm (train_X, ncols,  nHidden, NULL, NULL, NULL);
-    rbm.contrastive_divergence(k, training_epochs, learning_rate, lr_coef, NULL, true );
+    RBM rbm (train_X, ncols,  nHidden, nullptr, nullptr, nullptr);
+    rbm.contrastive_divergence(k, training_epochs, learning_rate, lr_coef, nullptr, true );
     //train RBM
 
     //reconstruct

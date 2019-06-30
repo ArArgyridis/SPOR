@@ -27,17 +27,17 @@ void ClassRelatedFeatureNode::resetPosition() {
 ClassRelatedFeatureNode::ClassRelatedFeatureNode() {
     relativeClassName = "Dummy";
     position = 0;
-    //cResult = NULL;
+    //cResult = nullptr;
 }
 
 string ClassRelatedFeatureNode::getRelativeClassName() {
     return relativeClassName;
 }
 
-void ClassRelatedFeatureNode::setCResult(connection *conn, string *str, string *column){
+void ClassRelatedFeatureNode::setCResult(connection *conn, string &tableName, string &gidColumn){
 
     work Xaction2 (*conn);
-    string query = "select * from " + *str + " order by " + *column + " asc" ;
+    string query = "select * from " + tableName + " order by " + gidColumn + " asc" ;
     cResult = Xaction2.exec(query);
     maxPosition = (int) cResult.size();
     Xaction2.commit();

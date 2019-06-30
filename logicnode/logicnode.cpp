@@ -24,7 +24,7 @@ void LogicNode::addSubNode(TreeNodePtr nodePtr) {
 }
 
 int LogicNode::getAllParentAndNode() {
-    if ( parentNode != NULL   ) {
+    if ( parentNode != nullptr   ) {
         int type = parentNode->getAllParentAndNode();
         if ( ( type == 0 ) && ( nodeType == AND ) )
             return 0;

@@ -43,19 +43,19 @@ DBN::DBN(matrix2dPtr tX, matrix2dPtr tY, std::vector<int> hl): inputData(tX), ou
         else {
             inputSize = hiddenLayerSizes.back();
                     std :: cout <<"first output"<<"\n";
-            layerInput = sigmoidLayers.back().getSampleHGivenV(NULL);
+            layerInput = sigmoidLayers.back().getSampleHGivenV(nullptr);
             std :: cout << "end of fist output\n";
         }
 
-        HiddenLayer sigmoidLayer = HiddenLayer(layerInput, inputSize, hiddenLayerSizes[i], NULL, NULL);
+        HiddenLayer sigmoidLayer = HiddenLayer(layerInput, inputSize, hiddenLayerSizes[i], nullptr, nullptr);
         sigmoidLayers.push_back(sigmoidLayer);
 
-        RBM *rbmLayer = new RBM( layerInput, inputSize, hiddenLayerSizes[i],  sigmoidLayer.getWeights(), sigmoidLayer.getBias() , NULL) ;
+        RBM *rbmLayer = new RBM( layerInput, inputSize, hiddenLayerSizes[i],  sigmoidLayer.getWeights(), sigmoidLayer.getBias() , nullptr) ;
         rbmLayers.push_back(rbmLayer);
     }
 
     //layer for logistic regression
-    logisticLayer = new LogisticRegression (sigmoidLayers.back().getSampleHGivenV(NULL), outData, hiddenLayerSizes.back(), nOuts);
+    logisticLayer = new LogisticRegression (sigmoidLayers.back().getSampleHGivenV(nullptr), outData, hiddenLayerSizes.back(), nOuts);
     finetuneCost = logisticLayer->negativeLogLikelihood();
 }
 
@@ -92,7 +92,7 @@ void DBN::pretrain(float learningRate, float lrCoef, int  k, int epochs) {
 
 void DBN::finetuning (float learningRate, float lrCoef, int epochs) {
     /*
-    matrix2dPtr layerInput = sigmoidLayers.back().getSampleHGivenV(NULL);
+    matrix2dPtr layerInput = sigmoidLayers.back().getSampleHGivenV(nullptr);
     printMatrix("layer input of fine tuning", layerInput);
 
     */

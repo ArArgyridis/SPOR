@@ -47,8 +47,6 @@ class OntologyData;
 
 typedef std::shared_ptr<OntologyData> OntologyDataPtr;
 
-
-
 class OntologyClass {
 
     int classificationIterration; //number of classification loop

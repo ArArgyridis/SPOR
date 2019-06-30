@@ -16,11 +16,12 @@
 
 #include "fuzzyevaluator.hxx"
 
+using namespace std;
 FuzzyEvaluator::FuzzyEvaluator(OntologyDataPtr data): ontoData(data){}
 
 void FuzzyEvaluator::bestClassificationResult() {
     //connecting to the database
-    pqxx::connection Conn( *ontoData->connectionParameter);
+    pqxx::connection Conn( ontoData->connectionParameter);
     //creating a new work
     pqxx::work Xaction(Conn,"Best Classification result");
 
@@ -31,13 +32,13 @@ void FuzzyEvaluator::bestClassificationResult() {
     vector <string> classData;
 
     //droping best classification table
-    bClasResName  = "bestclassificationresult_" + *ontoData->tableName;
+    bClasResName  =  ontoData->tableName + "_bestclassificationresult";
     query = "drop table if exists " + bClasResName + "  ;";
     Xaction.exec(query);
-    query = "create table IF NOT EXISTS " + bClasResName +  "(" + *ontoData->gidColumn + " int, bestclassificationresult double precision);";
+    query = "create table IF NOT EXISTS " + bClasResName +  "(" + ontoData->gidColumn + " int, bestclassificationresult double precision);";
     Xaction.exec(query);
     vector<string> columnNames;
-    columnNames.push_back(*ontoData->gidColumn);
+    columnNames.push_back(ontoData->gidColumn);
     columnNames.push_back("bestclassificationresult");
 
     pqxx::tablewriter write(Xaction, bClasResName, columnNames.begin(), columnNames.end() );
@@ -54,17 +55,17 @@ void FuzzyEvaluator::bestClassificationResult() {
 
 void FuzzyEvaluator::classificationStability() {
     cout << "Computing Classification Stability\n";
-    pqxx::connection Conn( *ontoData->connectionParameter );
+    pqxx::connection Conn( ontoData->connectionParameter );
     //crete new work
     pqxx::work Xaction(Conn,"Computing Classification Stability");
-    string bClasStabName  = "classificationstability_" + *ontoData->tableName;
+    string bClasStabName  =  ontoData->tableName + "_classificationstability";
     string query = "drop table if exists " + bClasStabName + "  ;";
     Xaction.exec(query);
-    query = "create table IF NOT EXISTS " + bClasStabName +  "(" + *ontoData->gidColumn + " int, classificationstability double precision);";
+    query = "create table IF NOT EXISTS " + bClasStabName +  "(" + ontoData->gidColumn + " int, classificationstability double precision);";
    Xaction.exec(query);
 
     vector<string> columnNames;
-    columnNames.push_back(*ontoData->gidColumn);
+    columnNames.push_back(ontoData->gidColumn);
     columnNames.push_back("classificationstability");
 
     pqxx::tablewriter write(Xaction, bClasStabName, columnNames.begin(), columnNames.end() );

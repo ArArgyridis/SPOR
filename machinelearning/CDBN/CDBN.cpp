@@ -39,21 +39,21 @@ CDBN::CDBN(matrix2dPtr inp, matrix2dPtr out, int ins, vector<int> hls, int n_out
         }
 
         //add hidden layer
-        HiddenLayer sigmoidLayer = HiddenLayer (layerInput, inputSize, hiddenLayerSizes[i], NULL,NULL);
+        HiddenLayer sigmoidLayer = HiddenLayer (layerInput, inputSize, hiddenLayerSizes[i], nullptr,nullptr);
         sigmoidLayers.push_back(sigmoidLayer);
         //add rbm layer
         if (i == 0) {
-            CRBM *rbmLayer = new CRBM( layerInput, inputSize, hiddenLayerSizes[i],  sigmoidLayer.getWeights(), sigmoidLayer.getBias() , NULL) ;
+            CRBM *rbmLayer = new CRBM( layerInput, inputSize, hiddenLayerSizes[i],  sigmoidLayer.getWeights(), sigmoidLayer.getBias() , nullptr) ;
             rbmLayers.push_back(rbmLayer);
         }
         else {
-            RBM *rbmLayer = new RBM( layerInput, inputSize, hiddenLayerSizes[i],  sigmoidLayer.getWeights(), sigmoidLayer.getBias() , NULL) ;
+            RBM *rbmLayer = new RBM( layerInput, inputSize, hiddenLayerSizes[i],  sigmoidLayer.getWeights(), sigmoidLayer.getBias() , nullptr) ;
             rbmLayers.push_back(rbmLayer);
 
         }
     }
 
-    logisticLayer = new LogisticRegression (sigmoidLayers.back().getSampleHGivenV(NULL), outData, hiddenLayerSizes.back(), nOuts);
+    logisticLayer = new LogisticRegression (sigmoidLayers.back().getSampleHGivenV(nullptr), outData, hiddenLayerSizes.back(), nOuts);
     finetuneCost = logisticLayer->negativeLogLikelihood();
 }
 

@@ -101,7 +101,7 @@ float LogisticRegression::negativeLogLikelihood() {
 
 
 void LogisticRegression::train(int epochs, float lr, float lr_coef, float l2Reg, matrix2dPtr inp) {
-    if (inp != NULL) inputData = inp;
+    if (inp != nullptr) inputData = inp;
 
     for (register int i = 0; i < epochs; i++) {
 
@@ -204,7 +204,7 @@ void test_lr() {
     LogisticRegression classifier(train_X, train_Y, ncols, outs);
 
     // train online
-    classifier.train(n_epochs, learning_rate,1, 0, NULL);
+    classifier.train(n_epochs, learning_rate,1, 0, nullptr);
 
     int test_out = 12;
     matrix2dPtr test_X = matrix2dPtr (new matrix2d(test_out, ncols) );

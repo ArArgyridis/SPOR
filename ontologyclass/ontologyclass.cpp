@@ -16,9 +16,9 @@
 
 #include "ontologyclass.hxx"
 #include<cmath>
-#include <omp.h>
-#include "../machinelearning/CDBN/functions.hxx"
 #include <pqxx/tablewriter>
+
+#include "../machinelearning/CDBN/functions.hxx"
 
 using namespace std;
 using namespace pqxx;
@@ -36,150 +36,74 @@ void OntologyClass::computeMachineLearningClassification(LogicNodePtr lNode) {
     for (register int i = 0; i < lNode->getNodeCount(); i++) {
         if ( lNode->getSubNode(i)->getNodeType() == MACHINELEARNING ) {
             MachineLearningNodePtr tmpNode = dynamic_pointer_cast<MachineLearningNode>(lNode->getSubNode(i));
+            map<string, int> codeMap;
             if (!tmpNode->getComputed() ) {
-                string tmpStr = "with ";
-                string selectFtrStr = "select " + *ontoData->tableName + "." + *ontoData->gidColumn + ", ";
-                string fromSamStr = " from " + *ontoData->tableName +", ";
-                string fromDatStr ="";
-                string whereSamStr = " where " + *ontoData->gidColumn + " in (" ;
-                string whereDatStr=" where ";
-                string orderStr = " order by " + *ontoData->tableName + "." + *ontoData->gidColumn + ";";
-                matrix2dPtr sampleResult ;
+                for (register int pos = 0, classCode = 0; pos < tmpNode->getNumberOfEmployedClasses(); pos++, classCode++)
+                    codeMap[*tmpNode->getEmployedClass(pos)] = classCode;
 
-                if ( tmpNode->getNumberOfFeatures() > 0 ) {
-                    for (register int i = 0; i <  tmpNode->getNumberOfFeatures(); i++ ) {
-                        string ftr = *tmpNode->getFeature(i);
-                        tmpStr += "_tmp" + to_string(i) + " as "
-                                "( select min(t1." + ftr +") max_" + ftr + ", max(t2." + ftr +") min_" + ftr +
-                                " from "
-                                " ( select " + ftr + " from " +*ontoData->tableName + " where level = 1 order by " + ftr + " desc limit  (select count(*) from " + *ontoData->tableName + ") *0.003 ) as t1, "
-                                " ( select " + ftr + " from " + *ontoData->tableName +  " where level = 1 order by " + ftr +  " asc limit (select count(*) from " + *ontoData->tableName + ") *0.003 ) as t2 ), "
-                                "tmp" + to_string(i) + " as ( select   1 / (max_"+  ftr  + " - min_"+  ftr + " ) a_" + ftr  + " , 1 - 1 / (max_"  + ftr + " - min_" + ftr  + ")*max_"+ ftr  + " b_" + ftr + " from _tmp" + to_string(i) +"),";
-
-                        selectFtrStr += " tmp"+to_string(i) + ".a_" + ftr + "*" + ftr + " +"  + "tmp"+to_string(i) +  ".b_" + ftr +" " + ftr  + ",";
-                        fromSamStr += " tmp"+ to_string(i)+",";
-                    }
+                string selectStr = "SELECT " + this->ontoData->gidColumn +", " , fromStr = " FROM " + this->ontoData->tableName, orderStr = " ORDER BY " + this->ontoData->gidColumn, endStr;
+                //setting the clasifier labels -- ova approach
+                for (int i = 0; i < tmpNode->getNumberOfEmployedClasses(); i++) {
+                    selectStr += " CASE WHEN " + tmpNode->getLabelColumn() + " = '" + tmpNode->getAttributeValue(*tmpNode->getEmployedClass(i)) + "' THEN " +  to_string(i);
+                    if (i < tmpNode->getNumberOfEmployedClasses() - 1)
+                        selectStr += " ELSE ";
+                    endStr += " END ";
                 }
-                else {
-                    for (register unsigned int i = 0; i < ontoData->selectVec.size(); i++) {
-                        string ftr = *tmpNode->getFeature(i);
-                        tmpStr += "tmp"+to_string(i) + " as ( select   1 / (max( "+  ftr  + ") - min("+  ftr + ") ) a_" + ftr  + " , 1 - 1 / (max("  + ftr + " ) - min(" + ftr  + " ))*max("+ ftr  + ") b_" + ftr + " from " +*ontoData->tableName +"),";
+                selectStr += endStr + "class_label,";
 
-                        selectFtrStr += "a_" + ftr + "*" + ftr + " + b_" + ftr +" " + ftr  + ",";
-                        fromSamStr += " tmp"+ to_string(i)+",";
-                    }
+                for (int i = 0; i < tmpNode->getNumberOfFeatures(); i++) {
+                    selectStr += *tmpNode->getFeature(i);
+                    if (i < tmpNode->getNumberOfFeatures()-1)
+                        selectStr += ",";
                 }
-                tmpStr = tmpStr.substr(0, tmpStr.size() - 1);
-                selectFtrStr = selectFtrStr.substr(0, selectFtrStr.size() - 1);
-                fromSamStr = fromSamStr.substr(0, fromSamStr.size() - 1);
+                connection Conn( ontoData->connectionParameter );
+                work getData(Conn, "fetching");
 
-                int classCode = 0;
-                map<int,  int> tmpMap;
-                vector<int> tmpMapKeys;
-                map<string, int> codeMap;
-                for (register int pos = 0; pos < tmpNode->getNumberOfEmployedClasses(); pos++) {
-                    string tmpClassName = *tmpNode->getEmployedClass(pos) ;
-                    for (register unsigned int i = 0; i < (*ontoData->classMap)[tmpClassName]->ontoIndividuals.size(); i++  ) {
-                        if (tmpMap.find(  atoi ( (*ontoData->classMap)[tmpClassName]->ontoIndividuals[i].c_str() )   )  == tmpMap.end()   ) {
-                            tmpMap[ atoi ( (*ontoData->classMap)[tmpClassName]->ontoIndividuals[i].c_str() ) ] = classCode;
-                            tmpMapKeys.push_back( atoi ( (*ontoData->classMap)[tmpClassName]->ontoIndividuals[i].c_str() )   );
-                            //cout <<tmpClassName <<"\t" << (*ontoData->classMap)[tmpClassName]->ontoIndividuals[i] << endl;
-                            whereSamStr += (*ontoData->classMap)[tmpClassName]->ontoIndividuals[i] + ",";
+                pqxx::result data = getData.exec(selectStr + fromStr + orderStr);
+                //cout << selectStr + fromStr + orderStr << endl;
+
+                //defining the data structures
+                SampleVector sampleData, classifyData;
+                vector<int> idVector;
+                LabelTypeVector labelData;
+
+                int numberOfFeatures =data.columns() - 2;
+                for (size_t i = 0, classifyId = 0; i < data.size(); i++) {
+                    if(data[i][0].as<int>() == toClassify[classifyId]) {
+                        if (!data[i][1].is_null() ) { // this is a sample
+                            SampleType tmp;
+                            tmp.set_size(numberOfFeatures, 1);
+                            for (int k = 2; k < numberOfFeatures+2; k++)
+                                tmp(k-2, 0 ) = data[i][k].as<double>();
+
+                            sampleData.emplace_back(tmp);
+                            labelData.emplace_back(data[i][1].as<double>());
                         }
-                    }
-                    codeMap[tmpClassName] = classCode;
-                    //cout <<"className: " <<tmpClassName<<"\t" << classCode << endl;
-                    classCode++;
-                }
-                if (classCode <2)
-                    classCode++;
+                        //in any case, all objects will be classified
+                        SampleType tmp;
+                        tmp.set_size(numberOfFeatures, 1);
+                        for (int k = 2; k < numberOfFeatures+2; k++)
+                            tmp(k-2, 0) = data[i][k].as<double>();
 
-                whereSamStr = whereSamStr.substr(0, whereSamStr.size()-1);
-                whereSamStr += ") order by " + *ontoData->gidColumn;
+                        classifyData.emplace_back(tmp);
+                        idVector.emplace_back(data[i][0].as<int>());
 
-                //creating from and where string to classify only the objects which are candidates for the examnined classes
-                fromDatStr = fromSamStr;
-
-                for (  vector<string>::iterator it = MotherClass.begin(); it !=MotherClass.end(); it++  ) {
-                    fromDatStr += ", " + *it;
-                    whereDatStr += *ontoData->tableName + "." + *ontoData->gidColumn + " = " + *it + "." + *ontoData->gidColumn + " and ";
-                }
-
-                whereDatStr = whereDatStr.substr(0, whereDatStr.size()-4);
-                connection Conn( *ontoData->connectionParameter );
-                //crete new work
-                work Xaction(Conn, "geting min max");
-
-                //retrieving normalized data and samples
-                result data = Xaction.exec( tmpStr + selectFtrStr + fromDatStr +whereDatStr +  orderStr  );
-
-                result samples = Xaction.exec(tmpStr + selectFtrStr + fromSamStr + whereSamStr);
-
-                 /*
-                ofstream file1("sample_query");
-                ofstream file2 ("all_query");
-                file1 << tmpStr + selectFtrStr + fromSamStr + whereSamStr;
-                file2 << tmpStr + selectFtrStr + fromDatStr +whereDatStr +  orderStr;
-                file1.close();
-                file2.close();
-                */
-                Xaction.commit();
-                //storing data and samples within arrays
-                matrix2dPtr sampleData = matrix2dPtr ( new matrix2d  (  samples.size(), samples.columns() -1  )   );
-
-                for ( register unsigned int i = 0; i < samples.size(); i++)
-                    //skip first column as it is the id of the object
-                    for (register int unsigned  j = 1; j < samples.columns(); j++) {
-                        double inp = samples[i][j].as<double>();
-                        if (inp < 0.0 )
-                            inp = 0.0;
-                        else if (inp > 1.0)
-                            inp = 1.0;
-                        (*sampleData)(i,j-1) = inp;
-                    }
-
-                matrix2dPtr classifyData = matrix2dPtr ( new matrix2d  (  data.size(), data.columns() -1  )   );
-                vector<int> objCode( data.size() );
-                for ( register unsigned int i = 0; i < data.size(); i++) {
-                    for (register unsigned int j = 0; j < data.columns(); j++) {
-                        //cout << i << "\t" << j << endl;
-                        if ( j == 0) {
-                            int inp = data[i][0].as<int>();
-                            //cout <<"inp = " << inp << endl;
-                            objCode[i] = inp;
-                        }
-                        else {
-                            double inp = data[i][j].as<double>();
-                            if (inp < 0.0 )
-                                inp = 0.0;
-                            else if (inp > 1.0)
-                                inp = 1.0;
-                            (*classifyData)(i,j-1) = inp;
-                        }
+                        classifyId++;
                     }
                 }
-
-                //printMatrix("sampledata 1", sampleData);
-                sort( tmpMapKeys.begin(), tmpMapKeys.end() );
-                sampleResult = matrix2dPtr (new matrix2d  ( samples.size(), classCode ) );
-                for (register unsigned int i = 0; i < samples.size(); i++)
-                    for (register int j = 0; j < classCode; j++)
-                        if (    tmpMap[ tmpMapKeys[i] ]  == j      )
-                            (*sampleResult)(i,j) = 1;
-                        else
-                            (*sampleResult)(i,j) = 0;
-
+                tmpNode->computeClassification(sampleData, labelData, classifyData, codeMap, idVector);
+                tmpNode->setComputed();
+                /*
                 cout <<"Number of collected samples: "<< sampleResult->size1() << endl;
                 tmpNode->computeClassification( sampleData, sampleResult, classifyData,  codeMap,  objCode);
                 tmpNode->setComputed();
+                */
             }
         }
         else if   ( ( lNode->getSubNode(i)->getNodeType() == AND) || ( lNode->getSubNode(i)->getNodeType() == OR) )
             computeMachineLearningClassification( dynamic_pointer_cast<LogicNode> ( lNode->getSubNode(i) ) ) ;
     }
 }
-
-
 
 double OntologyClass::getClassMembershipValueForElement(int i) {
     return classMembershipValue[i];
@@ -189,10 +113,8 @@ int OntologyClass::getIndividualID(int pos) {
     return ontoData->curIDMap[pos];
 }
 
-
-
 void OntologyClass::estimateMembership() {
-    cout <<"Classifying "+this->className << " ";
+    cout <<"Classifying "+ this->className << " ";
     TreeNode::setCurClass(this->className);
 
     vector< vector<int> > keysForClassification;
@@ -202,11 +124,14 @@ void OntologyClass::estimateMembership() {
             if(classTreeDepth < (*ontoData->classMap)[MotherClass.at(i)]->classTreeDepth  ) {
                 classTreeDepth = (*ontoData->classMap)[MotherClass.at(i)]->classTreeDepth;
             }
-            int cKeyPos = 0;
-            vector<int> classKey ( (*ontoData->classMap)[MotherClass.at(i)]->classMembershipValue.size()  );
+            //int cKeyPos = 0;
+            vector<int> classKey; //( (*ontoData->classMap)[MotherClass.at(i)]->classMembershipValue.size()  );
             for (map<int, double>::iterator it =  (*ontoData->classMap)[ MotherClass.at(i)]->classMembershipValue.begin();  it !=  (*ontoData->classMap)[MotherClass.at(i)]->classMembershipValue.end(); it++  ) {
-                classKey[cKeyPos] = (it->first);
-                cKeyPos++;
+                if (it->second >= 0.5) {
+                    //classKey[cKeyPos] = it->first;
+                    classKey.emplace_back(it->first);
+                    //cKeyPos++;
+                }
             }
             sort(classKey.begin(), classKey.end());
             keysForClassification.push_back(classKey);
@@ -225,26 +150,7 @@ void OntologyClass::estimateMembership() {
 
     cout << "Depth = " << classTreeDepth << endl;
     //Connecting to the database
-    pqxx::connection Conn( *ontoData->connectionParameter );
-    //crete new work
-    work Xaction(Conn,"classification");
-    Xaction.exec("CREATE TABLE IF NOT EXISTS "+this->className+" ("+*ontoData->gidColumn + " int,"+this->className+"_membership double precision, CONSTRAINT " + this->className + "_pk PRIMARY KEY ("+*ontoData->gidColumn + "));");
-
-
-
-    Xaction.commit();
-    /*
-    //removing ontoindividuals from classification process
-    cout <<"size before: " << toClassify.size() << endl;
-     for (register unsigned int i = 0; i <  this->ontoIndividuals.size(); i++) {
-            int id = atoi( ontoIndividuals[i].c_str() ) ;
-         cout <<"removing : "<<id << endl;
-            toClassify.erase(std::remove(toClassify.begin(), toClassify.end(), id), toClassify.end());
-        }
-
-    cout <<"size after: " << toClassify.size() << endl;
-    */
-
+    pqxx::connection Conn( ontoData->connectionParameter );
     //computing cr features.
     computeCRFeatures( this->rootElement );
     //compute machine learning training
@@ -253,17 +159,17 @@ void OntologyClass::estimateMembership() {
 
     bool membershipValueChange = false;
     vector <string> columnNames;
-    columnNames.push_back( *ontoData->gidColumn );
+    columnNames.push_back( ontoData->gidColumn );
     columnNames.push_back(this->className+"_membership");
     work update( Conn, "Update" );
-    update.exec("DROP TABLE IF EXISTS "+this->className+" ;");
+    update.exec("DROP TABLE IF EXISTS "+ontoData->schema+"."+ this->className+" ;");
     vector<string> classData (2);
     //re-creating the table
-    update.exec("CREATE TABLE IF NOT EXISTS "+this->className+" ("+*ontoData->gidColumn + " int,"+this->className+"_membership double precision DEFAULT 0, CONSTRAINT " + this->className + "_pk PRIMARY KEY ("+*ontoData->gidColumn + "));");
+    update.exec("CREATE TABLE IF NOT EXISTS "+ontoData->schema+"."+ this->className+" ("+ontoData->gidColumn + " int,"+ this->className+"_membership double precision DEFAULT 0, CONSTRAINT " + ontoData->schema+"_"+ this->className + "_pk PRIMARY KEY ("+ ontoData->gidColumn + "));");
 
     unsigned int reg;
     vector<int>::iterator it;
-    tablewriter write(update, this->className, columnNames.begin(), columnNames.end() );
+    tablewriter write(update, ontoData->schema+"."+ this->className, columnNames.begin(), columnNames.end() );
     double membershipValue = 1;
 
 
@@ -312,7 +218,7 @@ void OntologyClass::estimateMembership() {
             classData.at(1) = "1";
 
             write.push_back(classData);
-            ontoData->classificationLabel[ id ] = this->className;
+            ontoData->classificationLabel[ id ] = ontoData->schema+"."+ this->className;
             ontoData->maxMembership[ ontoData->curIDMap[ id ] ] = 1;
 
         //}
@@ -331,11 +237,8 @@ void OntologyClass::estimateMembership() {
         classificationIterration++;
         estimateMembership();
     }
-    cout <<"Classification of "+this->className+" finished!!\n\n";
+    cout <<"Classification of "+ this->className + " finished!!\n\n";
 }
-
-
-
 
 OntologyClass::OntologyClass(string name):classificationIterration(0), className(name), classTreeDepth(0), hasCycleDepedency(false), isEnabled(true), isEstimated(false) {
     rootElement = AndNodePtr(new AndNode());
@@ -371,14 +274,12 @@ void OntologyClass::computeCRFeatures( LogicNodePtr element ) {
         TreeNodePtr tempElement = element->getSubNode(i);
         if ( tempElement->getNodeType()  == CRFEATURE ) {
             /*
-            if ( (boost::dynamic_pointer_cast<ClassRelatedFeatureNode>(tempElement)->getRelativeClassName() == this->className ) and (classificationIterration > 0) ) {
+            if ( (boost::dynamic_pointer_cast<ClassRelatedFeatureNode>(tempElement)->getRelativeClassName() == ontoData->schema+"."+ this->className ) and (classificationIterration > 0) ) {
                 crFeatureCalculation( boost::static_pointer_cast<ClassRelatedFeatureNode>( tempElement ) );
             }
             else
                        */
-                crFeatureCalculation( static_pointer_cast<ClassRelatedFeatureNode>(tempElement) );
-
-
+            crFeatureCalculation( static_pointer_cast<ClassRelatedFeatureNode>(tempElement) );
         }
         else{
             if ( ( tempElement->getNodeType() == AND ) || ( tempElement->getNodeType() == OR ) ||  ( tempElement->getNodeType() == COMPLEMENT )   )
@@ -394,12 +295,12 @@ void OntologyClass::crFeatureCalculation( ClassRelatedFeatureNodePtr crNode ) {
     transform(tempstring.begin(), tempstring.end(), tempstring.begin(), ::tolower);
     //Connecting to the database
     //crete new work
-    connection Conn( *ontoData->connectionParameter );
+    connection Conn( ontoData->connectionParameter );
     work Xaction(Conn );
 
     //checking if there is a cycle depedency and drops the relative table
 
-    if ( ( crNode->getRelativeClassName() ==this->className ) ) {
+    if ( ( crNode->getRelativeClassName() ==ontoData->schema+"."+ this->className ) ) {
         Xaction.exec("drop table if exists " + tempstring);
     }
 
@@ -410,14 +311,6 @@ void OntologyClass::crFeatureCalculation( ClassRelatedFeatureNodePtr crNode ) {
 
     result res = Xaction.exec(query);
     if ( res.empty() ) {
-       /*
-        //checking if the relative class has been disabled from classification. If yes, then classification of this class must occur
-
-        if (!(*ontoData->classMap)[crNode->getRelativeClassName()]->getComputed() ) {
-            (*ontoData->classMap)[crNode->getRelativeClassName()]->estimateMembership();
-        }
-        */
-
         //creating an "in" statement for the spatial query
         stringstream ss;
         ss<< "(";
@@ -437,93 +330,93 @@ void OntologyClass::crFeatureCalculation( ClassRelatedFeatureNodePtr crNode ) {
         //checking the type of the feature and setting the proper query for the database
         if ( crNode->getFeatureType() =="relative_border" ) {
             for (register int i = 0; i < (int) MotherClass.size(); i++ )
-                whereStr += MotherClass[i] + "." + *ontoData->gidColumn +  " = k1." +*ontoData->gidColumn +  " and " + MotherClass[i] + "_membership >= 0.5 and " ;
+                whereStr += MotherClass[i] + "." + ontoData->gidColumn +  " = k1." + ontoData->gidColumn +  " and " + MotherClass[i] + "_membership >= 0.5 and " ;
             whereStr = whereStr.substr(4, whereStr.size()-8);
             query = "with tmp1 as ( "
-                    " select  k1." + *ontoData->gidColumn + ", st_length(st_boundary(k1." + *ontoData->geomColumn + ") ) length "
-                    " from  "  + *ontoData->tableName + " k1 " + fromStr +
+                    " select  k1." + ontoData->gidColumn + ", st_length(st_boundary(k1." + ontoData->geomColumn + ") ) length "
+                                                                                                                  " from  "  + ontoData->tableName + " k1 " + fromStr +
                     " where " + whereStr +
-                    ") select a." +  *ontoData->gidColumn + ", sum (a.length/ tmp1.length) relative_border into " + tempstring +
-                    " from " + *ontoData->neighborTblName + " a,  tmp1, " + crNode->getRelativeClassName() +
-                    " where a." + *ontoData->gidColumn + " = tmp1." + *ontoData->gidColumn + " and a." + *ontoData->gidColumn +  "neigh=" + crNode->getRelativeClassName() +".id and " + crNode->getRelativeClassName() +"_membership >=0.5 "
-                    " group by a." +  *ontoData->gidColumn ;
+                    ") select a." +  ontoData->gidColumn + ", sum (a.length/ tmp1.length) relative_border into " + tempstring +
+                    " from " + ontoData->neighborTblName + " a,  tmp1, " + crNode->getRelativeClassName() +
+                    " where a." + ontoData->gidColumn + " = tmp1." + ontoData->gidColumn + " and a." + ontoData->gidColumn +  "neigh=" + crNode->getRelativeClassName() +".id and " + crNode->getRelativeClassName() +"_membership >=0.5 "
+                                                                                                                                                                                                                      " group by a." +  ontoData->gidColumn ;
         }else if ( crNode->getFeatureType() =="border" ) {
-            query = "select "+*ontoData->gidColumn + ", border  into "+tempstring+" from (select * from (select "+*ontoData->gidColumn + " from " +  *ontoData->tableName + ") as a left join (select n1."+*ontoData->gidColumn + " "+*ontoData->gidColumn + "d, sum(st_length((st_intersection(k1." + *ontoData->geomColumn + ",k2." + *ontoData->geomColumn + "))) )) as border from neighbors" +  *ontoData->tableName + " n1, " +  *ontoData->tableName + " k1, " +  *ontoData->tableName + " k2, "+crNode->getRelativeClassName()+" s1 where k1."+*ontoData->gidColumn + " = n1."+*ontoData->gidColumn + " and k2."+*ontoData->gidColumn + " = n1."+*ontoData->gidColumn + "neigh and s1."+crNode->getRelativeClassName()+"_membership>=0.5 and s1."+*ontoData->gidColumn + " = n1."+*ontoData->gidColumn + "neigh group by n1."+*ontoData->gidColumn + ") as b on a."+*ontoData->gidColumn + " = b."+*ontoData->gidColumn + "d  order by a."+*ontoData->gidColumn + ") as foo;";
+            query = "select "+ontoData->gidColumn + ", border  into "+tempstring+" from (select * from (select "+ontoData->gidColumn + " from " +  ontoData->tableName + ") as a left join (select n1."+ontoData->gidColumn + " "+ontoData->gidColumn + "d, sum(st_length((st_intersection(k1." + ontoData->geomColumn + ",k2." + ontoData->geomColumn + "))) )) as border from neighbors" +  ontoData->tableName + " n1, " +  ontoData->tableName + " k1, " +  ontoData->tableName + " k2, "+crNode->getRelativeClassName()+" s1 where k1."+ontoData->gidColumn + " = n1."+ontoData->gidColumn + " and k2."+ontoData->gidColumn + " = n1."+ontoData->gidColumn + "neigh and s1."+crNode->getRelativeClassName()+"_membership>=0.5 and s1."+ontoData->gidColumn + " = n1."+ontoData->gidColumn + "neigh group by n1."+ontoData->gidColumn + ") as b on a."+ontoData->gidColumn + " = b."+ontoData->gidColumn + "d  order by a."+ontoData->gidColumn + ") as foo;";
         } else if ( crNode->getFeatureType() =="relative_area" ) {
             for (register int i = 0; i < (int) MotherClass.size(); i++ )
-                whereStr += MotherClass[i] + "." + *ontoData->gidColumn +  " = a." +*ontoData->gidColumn +  " and ";
+                whereStr += MotherClass[i] + "." + ontoData->gidColumn +  " = a." +ontoData->gidColumn +  " and ";
             whereStr = whereStr.substr(0, whereStr.size()-4);
 
-            query = "select a."+*ontoData->gidColumn + ", sum(relative_area_"+*ontoData->gidColumn + "contained_"+*ontoData->gidColumn + ") as relative_area into " + tempstring + " from "+  *ontoData->tableName + " o1,  " + *ontoData->tableName + " o2,  objecthierarchy" +  *ontoData->tableName +  " a, "+crNode->getRelativeClassName()+"  c1 " + fromStr +
-                    " where a."+*ontoData->gidColumn + "contained = c1."+*ontoData->gidColumn + " and "+crNode->getRelativeClassName()+"_membership >=0.5 and a."+*ontoData->gidColumn + "contained = o2."+*ontoData->gidColumn + " and a."+*ontoData->gidColumn + " = o1."+*ontoData->gidColumn + " " + whereStr + " group by a."+*ontoData->gidColumn + " order by a."+*ontoData->gidColumn;
+            query = "select a."+ontoData->gidColumn + ", sum(relative_area_"+ontoData->gidColumn + "contained_"+ontoData->gidColumn + ") as relative_area into " + tempstring + " from "+  ontoData->tableName + " o1,  " + ontoData->tableName + " o2,  objecthierarchy" +  ontoData->tableName +  " a, "+crNode->getRelativeClassName()+"  c1 " + fromStr +
+                    " where a."+ontoData->gidColumn + "contained = c1."+ontoData->gidColumn + " and "+crNode->getRelativeClassName()+"_membership >=0.5 and a."+ontoData->gidColumn + "contained = o2."+ontoData->gidColumn + " and a."+ontoData->gidColumn + " = o1."+ontoData->gidColumn + " " + whereStr + " group by a."+ontoData->gidColumn + " order by a."+ontoData->gidColumn;
         } else if (crNode->getFeatureType() =="not") {
-            query = "select b."+*ontoData->gidColumn + ", " + crNode->getRelativeClassName()+"_membership as nott into " + tempstring +
-                    " from "+crNode->getRelativeClassName()+ " a left join "  + *ontoData->tableName + " b on a." + *ontoData->gidColumn + " =b." + *ontoData->gidColumn + " order by " + *ontoData->gidColumn;
+            query = "select b."+ontoData->gidColumn + ", " + crNode->getRelativeClassName()+"_membership as nott into " + tempstring +
+                    " from "+crNode->getRelativeClassName()+ " a left join "  + ontoData->tableName + " b on a." + ontoData->gidColumn + " =b." + ontoData->gidColumn + " order by " + ontoData->gidColumn;
         } else if (crNode->getFeatureType() =="is_covered") {
-            //query = "select distinct  c."+*ontoData->gidColumn + ", c.contained is_covered into "+tempstring+"  from (select * from (select "+*ontoData->gidColumn + " from " +  *ontoData->tableName + ") as a left join  (select o1."+*ontoData->gidColumn + "contained, 1 as contained  from objecthierarchy" + *ontoData->tableName + " o1, " + crNode->getRelativeClassName() + " c1 where c1."+*ontoData->gidColumn + " = o1."+*ontoData->gidColumn + " and c1."+crNode->getRelativeClassName()+"_membership >= 0.5) as b on   a."+*ontoData->gidColumn + " = b."+*ontoData->gidColumn + "contained) as c order by "+*ontoData->gidColumn + "";
+            //query = "select distinct  c."+ontoData->gidColumn + ", c.contained is_covered into "+tempstring+"  from (select * from (select "+ontoData->gidColumn + " from " +  ontoData->tableName + ") as a left join  (select o1."+ontoData->gidColumn + "contained, 1 as contained  from objecthierarchy" + ontoData->tableName + " o1, " + crNode->getRelativeClassName() + " c1 where c1."+ontoData->gidColumn + " = o1."+ontoData->gidColumn + " and c1."+crNode->getRelativeClassName()+"_membership >= 0.5) as b on   a."+ontoData->gidColumn + " = b."+ontoData->gidColumn + "contained) as c order by "+ontoData->gidColumn + "";
             for (register int i = 0; i < (int) MotherClass.size(); i++ )
-                whereStr += MotherClass[i] + "." + *ontoData->gidColumn +  " = a." +*ontoData->gidColumn +  "contained and ";
+                whereStr += MotherClass[i] + "." + ontoData->gidColumn +  " = a." +ontoData->gidColumn +  "contained and ";
             whereStr = whereStr.substr(0, whereStr.size()-4);
 
             query = "with tmp1 as ( "
-                    " select " + *ontoData->gidColumn + " from " + crNode->getRelativeClassName() + " where " + crNode->getRelativeClassName() +  "_membership >= 0.5 ) " +
-                    " select  a." + *ontoData->gidColumn + "contained " + *ontoData->gidColumn + ", 1 is_covered into " + tempstring +
-                    " from objecthierarchy" + *ontoData->tableName +  "  a, tmp1  " + fromStr +
+                    " select " + ontoData->gidColumn + " from " + crNode->getRelativeClassName() + " where " + crNode->getRelativeClassName() +  "_membership >= 0.5 ) " +
+                    " select  a." + ontoData->gidColumn + "contained " + ontoData->gidColumn + ", 1 is_covered into " + tempstring +
+                    " from objecthierarchy" + ontoData->tableName +  "  a, tmp1  " + fromStr +
                     " where "  +
                     " tmp1.id = a.id " + whereStr;
 
         } else if (crNode->getFeatureType() =="distance_to") {
-            query = "select a."+*ontoData->gidColumn + ", b.distance_to into  "+tempstring+" from (select "+*ontoData->gidColumn + " from "+  *ontoData->tableName +") as a left join (select l2."+*ontoData->gidColumn + ", min( st_distance(k1.centroid,k2.centroid)) as distance_to from " +  *ontoData->tableName + " l1, " +  *ontoData->tableName + " l2,  "+ crNode->getRelativeClassName()+" c1, "+ crNode->getRelativeClassName()+" c2, centroid" +  *ontoData->tableName + " k1, centroid" +  *ontoData->tableName + " k2 where l1."+*ontoData->gidColumn + " != l2."+*ontoData->gidColumn + " and c1."+ crNode->getRelativeClassName()+"_membership>=0.5 and l1."+*ontoData->gidColumn + " = c1."+*ontoData->gidColumn + " and l2."+*ontoData->gidColumn + " = c2."+*ontoData->gidColumn + " and c2."+ crNode->getRelativeClassName()+"_membership <0.5 and k1."+*ontoData->gidColumn + " = c1."+*ontoData->gidColumn + " and k2."+*ontoData->gidColumn + "  = c2."+*ontoData->gidColumn + " and l1.level = l2.level group by l2."+*ontoData->gidColumn + " order by l2."+*ontoData->gidColumn + ") as b on a."+*ontoData->gidColumn + " = b."+*ontoData->gidColumn + " order by a."+*ontoData->gidColumn + "";
+            query = "select a."+ontoData->gidColumn + ", b.distance_to into  "+tempstring+" from (select "+ontoData->gidColumn + " from "+  ontoData->tableName +") as a left join (select l2."+ontoData->gidColumn + ", min( st_distance(k1.centroid,k2.centroid)) as distance_to from " +  ontoData->tableName + " l1, " +  ontoData->tableName + " l2,  "+ crNode->getRelativeClassName()+" c1, "+ crNode->getRelativeClassName()+" c2, centroid" +  ontoData->tableName + " k1, centroid" +  ontoData->tableName + " k2 where l1."+ontoData->gidColumn + " != l2."+ontoData->gidColumn + " and c1."+ crNode->getRelativeClassName()+"_membership>=0.5 and l1."+ontoData->gidColumn + " = c1."+ontoData->gidColumn + " and l2."+ontoData->gidColumn + " = c2."+ontoData->gidColumn + " and c2."+ crNode->getRelativeClassName()+"_membership <0.5 and k1."+ontoData->gidColumn + " = c1."+ontoData->gidColumn + " and k2."+ontoData->gidColumn + "  = c2."+ontoData->gidColumn + " and l1.level = l2.level group by l2."+ontoData->gidColumn + " order by l2."+ontoData->gidColumn + ") as b on a."+ontoData->gidColumn + " = b."+ontoData->gidColumn + " order by a."+ontoData->gidColumn + "";
         } else if ((crNode->getFeatureType() == "subobject_distance_to_exterior")) {
             query = " with tmp1 as ("
-                    "select  a." + *ontoData->gidColumn + ", b.exteriorring "
-                    "from " + crNode->getRelativeClassName() + " a  join centroid"+ *ontoData->tableName + " b "
-                    "on a."+ *ontoData->gidColumn + " = b." + *ontoData->gidColumn + " "
-                    "   and a." + crNode->getRelativeClassName() + "_membership >= 0.5 order by " + *ontoData->gidColumn + "), "
-                    "tmp2 as("
-                    "select " + *ontoData->gidColumn +     "contained, st_distance(centroid,tmp1.exteriorring) subobject_distance_to_exterior "
-                    "from objecthierarchy" + *ontoData->tableName +  "  d join tmp1 "
-                    "on d." + *ontoData->gidColumn + "  = tmp1." + *ontoData->gidColumn + " "
-                    "join centroid" + *ontoData->tableName + " c on c." + *ontoData->gidColumn + " = d." + *ontoData->gidColumn + "contained ) "
-                    "select id, subobject_distance_to_exterior into " + tempstring + " from " + *ontoData->tableName + " a left join tmp2 b "
-                    "on a." + *ontoData->gidColumn + " = b." + *ontoData->gidColumn +  "contained and a." + *ontoData->gidColumn + "in " + inSt + "order by a."  + *ontoData->gidColumn  ;
+                    "select  a." + ontoData->gidColumn + ", b.exteriorring "
+                                                         "from " + crNode->getRelativeClassName() + " a  join centroid"+ ontoData->tableName + " b "
+                                                                                                                                               "on a."+ ontoData->gidColumn + " = b." + ontoData->gidColumn + " "
+                                                                                                                                                                                                              "   and a." + crNode->getRelativeClassName() + "_membership >= 0.5 order by " + ontoData->gidColumn + "), "
+                                                                                                                                                                                                                                                                                                                    "tmp2 as("
+                                                                                                                                                                                                                                                                                                                    "select " + ontoData->gidColumn +     "contained, st_distance(centroid,tmp1.exteriorring) subobject_distance_to_exterior "
+                                                                                                                                                                                                                                                                                                                                                          "from objecthierarchy" + ontoData->tableName +  "  d join tmp1 "
+                                                                                                                                                                                                                                                                                                                                                                                                          "on d." + ontoData->gidColumn + "  = tmp1." + ontoData->gidColumn + " "
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                              "join centroid" + ontoData->tableName + " c on c." + ontoData->gidColumn + " = d." + ontoData->gidColumn + "contained ) "
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         "select id, subobject_distance_to_exterior into " + tempstring + " from " + ontoData->tableName + " a left join tmp2 b "
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           "on a." + ontoData->gidColumn + " = b." + ontoData->gidColumn +  "contained and a." + ontoData->gidColumn + "in " + inSt + "order by a."  + ontoData->gidColumn  ;
 
         } else if ( crNode->getFeatureType() == "neighbor_distance_to_exterior" ) {
             for (register int i = 0; i < (int) MotherClass.size(); i++ )
-                whereStr += MotherClass[i] + "." + *ontoData->gidColumn +  " = a." +*ontoData->gidColumn +  " and ";
+                whereStr += MotherClass[i] + "." + ontoData->gidColumn +  " = a." +ontoData->gidColumn +  " and ";
             whereStr = whereStr.substr(0, whereStr.size()-4);
             query = " with tmp1 as ("
-                    " select a." + *ontoData->gidColumn + ", st_exteriorring(b.geom) geom from " + crNode->getRelativeClassName() +  "  a join " + *ontoData->tableName + " b "
-                    " on " + crNode->getRelativeClassName() + "_membership >= 0.5 "
-                    "  and a." + *ontoData->gidColumn + " = b." + *ontoData->gidColumn + " ) , "
-                    " tmp2 as ( "
-                    " select distinct a." + *ontoData->gidColumn + ", a.centroid "
-                    " from  centroid" + *ontoData->tableName + " a " + fromStr +
-                    " where  a." + *ontoData->gidColumn + "  not in (select " + *ontoData->gidColumn + " from tmp1) " +
-                     whereStr + ")" +
-                    " select b." + *ontoData->gidColumn + ", min(st_distance(a." + *ontoData->geomColumn + ", b.centroid)) neighbor_distance_to_exterior into " + tempstring +
-                    " from tmp1 a join tmp2 b on a." + *ontoData->gidColumn + " <> b. " + *ontoData->gidColumn +
-                    " group by b." + *ontoData->gidColumn ;
+                    " select a." + ontoData->gidColumn + ", st_exteriorring(b.geom) geom from " + crNode->getRelativeClassName() +  "  a join " + ontoData->tableName + " b "
+                                                                                                                                                                        " on " + crNode->getRelativeClassName() + "_membership >= 0.5 "
+                                                                                                                                                                                                                  "  and a." + ontoData->gidColumn + " = b." + ontoData->gidColumn + " ) , "
+                                                                                                                                                                                                                                                                                     " tmp2 as ( "
+                                                                                                                                                                                                                                                                                     " select distinct a." + ontoData->gidColumn + ", a.centroid "
+                                                                                                                                                                                                                                                                                                                                   " from  centroid" + ontoData->tableName + " a " + fromStr +
+                    " where  a." + ontoData->gidColumn + "  not in (select " + ontoData->gidColumn + " from tmp1) " +
+                    whereStr + ")" +
+                    " select b." + ontoData->gidColumn + ", min(st_distance(a." + ontoData->geomColumn + ", b.centroid)) neighbor_distance_to_exterior into " + tempstring +
+                    " from tmp1 a join tmp2 b on a." + ontoData->gidColumn + " <> b. " + ontoData->gidColumn +
+                    " group by b." + ontoData->gidColumn ;
 
         }
         else if  (crNode->getFeatureType() ==  "overlap" ) {
             query = "with tmp1 as ( "
-                    " select a." + *ontoData->gidColumn + ", " + *ontoData->geomColumn +
-                    " from " + *ontoData->tableName + " a "
-                    " inner join " +  crNode->getRelativeClassName()  + "   b "
-                    " on " + crNode->getRelativeClassName() +  "_membership >= 0.5 and a." + *ontoData->gidColumn + " = b." + *ontoData->gidColumn + "  )"
-                    " , tmp2 as ( "
-                    " select distinct a." + *ontoData->gidColumn + ", a." + *ontoData->geomColumn +
-                    " from " + *ontoData->tableName + " a "
-                    " left join " +  crNode->getRelativeClassName()  + "   b "
-                    " on a." + *ontoData->gidColumn + " = b." + *ontoData->gidColumn + " where b. " + *ontoData->gidColumn +  " is null)"
-                    ", tmp3 as ("
-                    " select distinct t2." + *ontoData->gidColumn +  ", 1 overlap "
-                    " from tmp1 t1 join tmp2 t2 "
-                    " on t1." + *ontoData->geomColumn + " && t2." + *ontoData->geomColumn + " and st_overlaps(t1." + *ontoData->geomColumn + ", t2." + *ontoData->geomColumn + ") order by t2." + *ontoData->gidColumn +
-                    ") select a." + *ontoData->gidColumn + ", b.overlap into " + tempstring  +
-                    " from tmp2 a left join tmp3 b on a."+*ontoData->gidColumn + "=b." + *ontoData->gidColumn +
-                    " order by a." + *ontoData->gidColumn;
+                    " select a." + ontoData->gidColumn + ", " + ontoData->geomColumn +
+                    " from " + ontoData->tableName + " a "
+                                                     " inner join " +  crNode->getRelativeClassName()  + "   b "
+                                                                                                         " on " + crNode->getRelativeClassName() +  "_membership >= 0.5 and a." + ontoData->gidColumn + " = b." + ontoData->gidColumn + "  )"
+                                                                                                                                                                                                                                        " , tmp2 as ( "
+                                                                                                                                                                                                                                        " select distinct a." + ontoData->gidColumn + ", a." + ontoData->geomColumn +
+                    " from " + ontoData->tableName + " a "
+                                                     " left join " +  crNode->getRelativeClassName()  + "   b "
+                                                                                                        " on a." + ontoData->gidColumn + " = b." + ontoData->gidColumn + " where b. " + ontoData->gidColumn +  " is null)"
+                                                                                                                                                                                                               ", tmp3 as ("
+                                                                                                                                                                                                               " select distinct t2." + ontoData->gidColumn +  ", 1 overlap "
+                                                                                                                                                                                                                                                               " from tmp1 t1 join tmp2 t2 "
+                                                                                                                                                                                                                                                               " on t1." + ontoData->geomColumn + " && t2." + ontoData->geomColumn + " and st_overlaps(t1." + ontoData->geomColumn + ", t2." + ontoData->geomColumn + ") order by t2." + ontoData->gidColumn +
+                    ") select a." + ontoData->gidColumn + ", b.overlap into " + tempstring  +
+                    " from tmp2 a left join tmp3 b on a."+ontoData->gidColumn + "=b." + ontoData->gidColumn +
+                    " order by a." + ontoData->gidColumn;
         }
 
         Xaction.exec(query);
@@ -532,7 +425,7 @@ void OntologyClass::crFeatureCalculation( ClassRelatedFeatureNodePtr crNode ) {
 
 
     if (crNode->getFeatureType() !="not") {
-        query = "update " + tempstring + " set " +  crNode->getFeatureType() + " = 0 WHERE " +  crNode->getFeatureType() + " IS NULL";
+        query = "update " + tempstring + " set " +  crNode->getFeatureType() + " = 0 WHERE " +  crNode->getFeatureType() + " IS nullptr";
         Xaction.exec(query);
     }
     Xaction.commit();
@@ -543,20 +436,15 @@ void OntologyClass::crFeatureCalculation( ClassRelatedFeatureNodePtr crNode ) {
         ontoData->classRelatedDBTable->push_back(tempstring); //pushing back the name of the table, so it can later be removed from the db
     }
 
-    crNode->setCResult( ontoData->Conn, &tempstring, ontoData->gidColumn );
+    crNode->setCResult( ontoData->Conn, tempstring, ontoData->gidColumn );
 
 }
-
-
 
 void OntologyClass::setDisable() {
     isEnabled = false;
 }
 
-
-OntologyClass::~OntologyClass() {
-
-}
+OntologyClass::~OntologyClass() {}
 
 void OntologyClass::setLogicNodeType(int node) {
     if (node == AND)
@@ -564,7 +452,6 @@ void OntologyClass::setLogicNodeType(int node) {
     else if (node ==OR)
         this->rootElement = OrNodePtr (new OrNode());
 }
-
 
 LogicNodePtr OntologyClass::getRootElement() {
     return this->rootElement;
@@ -586,9 +473,9 @@ void OntologyClass::addToClassVector(string classType,  string className) {
                 MotherClass.push_back( className );
         }
         else if ( classType == "SuperClass" ) {
-             std::vector<string>::iterator it = std::find( SuperClass.begin(), SuperClass.end(), className );
-             if ( it == SuperClass.end() )
-                 SuperClass.push_back( className );
+            std::vector<string>::iterator it = std::find( SuperClass.begin(), SuperClass.end(), className );
+            if ( it == SuperClass.end() )
+                SuperClass.push_back( className );
         }
         else if ( classType == "ComplementClass" ) {
             std::vector<string>::iterator it = std::find( ComplementClass.begin(), ComplementClass.end(), className );

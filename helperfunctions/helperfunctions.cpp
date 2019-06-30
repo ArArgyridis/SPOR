@@ -49,7 +49,6 @@ vector<int> getCommonElements(vector<int> first, vector<int> second) {
     sort (first.begin(), first.end());
     sort (second.begin(), second.end());
      it=std::set_intersection (first.begin(), first.end(), second.begin(), second.end(), v.begin());
-
      v.resize(it-v.begin());
     return v;
 }
