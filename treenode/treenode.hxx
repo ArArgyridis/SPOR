@@ -32,7 +32,7 @@ extern const double SUPERCLASS_NODE_NULL;
 extern const double COMPLEMENT_NODE_NULL;
 extern const double MACHINE_LEARNING_NODE_NULL;
 
-enum node_type {TREENODE = 0, FEATURE, CRFEATURE, LOGIC, AND, OR, SUPERCLASS, COMPLEMENT, MACHINELEARNING};
+enum node_type {TREENODE = 0, FEATURE, CRFEATURE, LOGIC, AND, OR, SUPERCLASS, COMPLEMENT, MACHINELEARNING, CRISPFEATURENODE};
 
 
 
@@ -42,23 +42,16 @@ class LogicNode;
 typedef std::shared_ptr<LogicNode> LogicNodePtr;
 
 class TreeNode {
-    double membershipValue; //node's membership value
-
-
 protected:
-
+    double membershipValue; //node's membership value
     /*Holder to identify if for a curent segment the membership for the curent node is computed*/
     bool isEstimated;
-
     /*Node type identifier*/
     int nodeType;
-
     /*pointer to the super node of the current element*/
     LogicNodePtr parentNode;
-
     /*name of the current examined class*/
     static std::string curClass;
-
 public:
     int parentNodesSumType;
 
@@ -79,7 +72,7 @@ public:
     virtual void resetMembershipValue() = 0;
     virtual void forceNULLMembershipValue() = 0;
 
-    static void addSegments(pqxx::result);
+    static void addMembers(pqxx::result);
     static pqxx::result getSegments();
     static void emptyNodes();
     static pqxx::result segmentsResult;

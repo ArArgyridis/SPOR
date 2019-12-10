@@ -16,7 +16,6 @@
 
 #include "andnode.hxx"
 
-
 ///:~ AndNode Methods//////////////////////////////////////////////////////////////
 
 AndNode::~AndNode() {}
@@ -38,7 +37,6 @@ void AndNode::resetMembershipValue() {
         subNodeVector.at(i)->resetMembershipValue();
     }
 }
-
 
 void AndNode::valueEstimation(int curSegment) {
     this->setMembershipValue(AND_NODE_NULL);

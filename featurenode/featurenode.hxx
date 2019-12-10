@@ -18,40 +18,27 @@
 #define FEATURENODE_H
 #include "../treenode/treenode.hxx"
 #include "../fuzzydatatype/fuzzydatatype.hxx"
-
+#include "../crispdatatype/crispdatatype.hxx"
 
 class FeatureNode: public TreeNode {
-
     std::string className; //name of the class the current feature is belonging to
-
     std::string featureName; //the name of the feature, e.g. ndvi, relative_border, relative_area etc
-
     FuzzyDatatypePtr fuzzyNominal; //variable containing the fuzzy function and her limits
-
     int nodeFeatureCode; //number of column inside the database where requested feature relies. If it's a CR-Feature it's equal to -1
 
 public:
 
     FeatureNode();
-
     FeatureNode (std::string,std::string, FuzzyDatatypePtr);//Property name and fuzzyNominal
-
     void forceNULLMembershipValue();
-
     virtual ~FeatureNode();
-
     int getFeatureCode();
-
     void resetMembershipValue();
-
     void setNotEstimated();
     virtual void valueEstimation(int);
 
-
     //static public members
     static void setTableName(std::string);
-
-
 };
 
 typedef std::shared_ptr<FeatureNode> FeatureNodePtr;

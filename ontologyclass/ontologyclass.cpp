@@ -175,12 +175,9 @@ void OntologyClass::estimateMembership() {
 
     // #pragma omp parallel for  private(it, reg, membershipValue )
     for (  it = toClassify.begin(); it != toClassify.end(); it++ ) {
-        //TreeNode::curSegment = ontoData->curIDMap[*it];
         rootElement->valueEstimation( ontoData->curIDMap[*it] );
-        // cout <<"current Segment:"<<TreeNode::curSegment << endl;
-        for ( reg = 0; reg < MotherClass.size(); reg++ ) {
+        for ( reg = 0; reg < MotherClass.size(); reg++ )
             membershipValue = min ( (*ontoData->classMap)[MotherClass.at(reg)]->getClassMembershipValueForElement( *it), membershipValue);
-        }
 
         if ( ( membershipValue >= 0.5 )  && ( getStatus() ) ) {
             //cout <<*it <<"\t" <<rootElement->getMembershipValue()<< "\t" << membershipValue << endl;

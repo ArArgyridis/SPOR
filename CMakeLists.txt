@@ -30,6 +30,9 @@ set(SOURCE
     ${CMAKE_CURRENT_SOURCE_DIR}/andnode/andnode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/classrelatedfeaturenode/classrelatedfeaturenode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/complementnode/complementnode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/crispdatatype/crispdatatype.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/crispfeaturenode/crispfeaturenode.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/datatype/datatype.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/featurenode/featurenode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fuzzydatatype/fuzzydatatype.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fuzzyevaluator/fuzzyevaluator.cpp
@@ -60,6 +63,9 @@ set (HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/andnode/andnode.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/classrelatedfeaturenode/classrelatedfeaturenode.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/complementnode/complementnode.hxx
+    ${CMAKE_CURRENT_SOURCE_DIR}/crispdatatype/crispdatatype.hxx
+    ${CMAKE_CURRENT_SOURCE_DIR}/crispfeaturenode/crispfeaturenode.hxx
+    ${CMAKE_CURRENT_SOURCE_DIR}/datatype/datatype.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/featurenode/featurenode.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/fuzzydatatype/fuzzydatatype.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/fuzzyevaluator/fuzzyevaluator.hxx

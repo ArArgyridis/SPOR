@@ -100,7 +100,7 @@ void OntologyContainer::establishConnection(bool computeTopology, bool recompute
     //retrieving segments for the respective
     query = "select " + ontoData->gidColumn  +  ontoData->selectStr +  " from "+  ontoData->tableName +" order by " + ontoData->gidColumn +  " ;";
     result tempSegments = Xaction.exec(query);
-    TreeNode::addSegments( tempSegments );
+    TreeNode::addMembers( tempSegments );
     *ontoData->segNumber = ( int )tempSegments.size();
     Xaction.commit();
 

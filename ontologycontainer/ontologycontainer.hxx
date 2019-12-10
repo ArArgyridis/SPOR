@@ -18,15 +18,15 @@
 #define ONTOLOGYCONTAINER_H
 
 #include <boost/shared_array.hpp>
-
 #include <map>
 #include <pqxx/pqxx>
+#include <sys/param.h>  // MAXPATHLEN definition
+#include <unistd.h>  // getcwd()
 #include <vector>
+
 #include "../superclassnode/superclassnode.hxx"
 #include "../fuzzydatatype/fuzzydatatype.hxx"
 #include "../fuzzyobjectproperty/fuzzyobjectproperty.hxx"
-#include <sys/param.h>  // MAXPATHLEN definition
-#include <unistd.h>  // getcwd()
 #include "../ontologyclass/ontologyclass.hxx"
 #include "../ontologydata/ontologydata.hxx"
 

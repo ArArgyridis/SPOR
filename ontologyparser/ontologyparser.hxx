@@ -17,14 +17,16 @@
 #ifndef ONTOLOGYPARSER_H
 #define ONTOLOGYPARSER_H
 
+#include <libxml/tree.h>
+#include <string>
+
 #include "../andnode/andnode.hxx"
 #include "../classrelatedfeaturenode/classrelatedfeaturenode.hxx"
 #include "../complementnode/complementnode.hxx"
-#include <libxml/tree.h>
+#include "../crispfeaturenode/crispfeaturenode.hxx"
 #include "../ontologydata/ontologydata.hxx"
 #include "../ontologyclass/ontologyclass.hxx"
 #include "../ornode/ornode.hxx"
-#include <string>
 
 class OntologyParser {
     OntologyDataPtr ontoData;

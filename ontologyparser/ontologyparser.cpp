@@ -23,7 +23,6 @@ using xmlUniquePtr = std::unique_ptr<xmlChar, decltype(xmlFree)>;
 const string fuzzyOwlDatatypeProperties[] = {"type","a", "b", "c", "d"};
 
 void OntologyParser::addOntologyHierarchy (xmlNodePtr ontoNode) {
-
     //cout <<ontoNode->name <<endl;
     if  ( xmlStrEqual (ontoNode->name, (xmlChar*)"Ontology") ) {
         ontoData->ontologyIRI = string( (char*)xmlGetProp(ontoNode,(xmlChar*)"about") );
@@ -56,7 +55,6 @@ void OntologyParser::addOntologyHierarchy (xmlNodePtr ontoNode) {
     if (xmlStrEqual (ontoNode->name, (xmlChar*)"NamedIndividual") ) {
         getOntologyIndividual(ontoNode);
     }
-
 
     if ( (xmlNextElementSibling(ontoNode) !=nullptr) ) {
         addOntologyHierarchy(xmlNextElementSibling(ontoNode));
@@ -107,14 +105,7 @@ void OntologyParser::computeSelectStr() {
 string cName, fName, pName, elCondition;
 string dName="",  oProp="", funcName="", featureType="";
 //bool classFeature = false;
-map<string, ClassRelatedFeatureNodePtr>::iterator CRFeatureIt;
-map<string, FuzzyObjectTypePtr >::iterator fuzzyObjectTypeMapIt;
-
-
 map<string, OntologyClassPtr>::iterator classMapIt;
-map<string, FuzzyDatatypePtr>::iterator fuzzyDatatypeMapIt;
-
-map<string, MachineLearningDatatypePtr>::iterator mlDatatypeMapIt;
 
 void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot) {
     //cout <<ontoNode->name << endl;
@@ -217,7 +208,7 @@ void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot
         //checking here if the current feature is a class-related one
         getOntologyClass(xmlNextElementSibling(ontoNode), tempRoot) ;
     }
-    else if (xmlStrEqual (ontoNode->name, (xmlChar*) "someValuesFrom" ))   { //this is a restriction
+    else if (xmlStrEqual (ontoNode->name, (xmlChar*) "someValuesFrom" )) { //this is a restriction
         if (xmlHasProp(ontoNode,(xmlChar*)"resource") ) {
             fName = ontoPropValue(ontoNode,"resource");
             //std :: cout << "dName \t" <<dName <<"\n"; //checkings below must be changed. dName should be considered -- TODO
@@ -246,40 +237,40 @@ void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot
                 if (cName == fName)
                     (*ontoData->classMap)[cName]->setCycleDepedency();
                 fName = "";
-
             }
+        } else if ( xmlFirstElementChild(ontoNode) != nullptr) {
+            //cout << "found crisp node!!!!\n";
+            if( std::find(ontoData->selectVec.begin(), ontoData->selectVec.end(), dName) ==  ontoData->selectVec.end() )
+                ontoData->selectVec.push_back(dName);
+
+            xmlNodePtr tmpNode = xmlFirstElementChild(xmlFirstElementChild(ontoNode));
+            getOntologyClass(xmlNextElementSibling(tmpNode), tempRoot);
         }
-        else {
+        else { //this is not working for now -- need to re-work the entire parsing logic!!
             //if there is no resource on the SomeValuesFrom node, then a complex expression follows
             string tmpCName = genRandomString(10);
             (*ontoData->classMap)[tmpCName] = OntologyClassPtr(new OntologyClass(tmpCName));
             LogicNodePtr tmpRt = (*ontoData->classMap)[tmpCName]->getRootElement();
             string objectFeature = dName;
-
             getOntologyClass( xmlFirstElementChild(ontoNode), tmpRt );
-
             ClassRelatedFeatureNodePtr crNode = ClassRelatedFeatureNodePtr(new ClassRelatedFeatureNode(tmpCName, (*ontoData->fuzzyObjectTypeMap)[objectFeature])); //create the new feature
             tempRoot->addSubNode(crNode); //add it as subnode to the tempRoot ;)
             cout <<"object feature name: " <<objectFeature << endl;
             (*ontoData->classMap)[cName]->addToClassVector("ComplementClass", tmpCName);
         }
     }
+    else if (xmlStrEqual (ontoNode->name, (xmlChar*) "hasValue" )) { //crisp feature node
+        string tmpName(reinterpret_cast<const char*>(ontoNode->name));
+        double val = atof(reinterpret_cast<const char*>(xmlNodeGetContent(ontoNode)));
+        CrispDatatypePtr crispNode = CrispDatatypePtr(new CrispDatatype(tmpName, val));
+        CrispFeatureNodePtr tmpFtNode = CrispFeatureNodePtr(new CrispFeatureNode(dName, crispNode) );
+        tempRoot->addSubNode(tmpFtNode);
+    }
     else if (xmlStrEqual (ontoNode->name, (xmlChar*) "complementOf" ) ) {
         ComplementNodePtr comNode = ComplementNodePtr (new ComplementNode() );
         if ( xmlHasProp(ontoNode,(xmlChar*)"resource")  ) {
             dName = ontoPropValue(ontoNode, "resource");
             classMapIt = ontoData->classMap->find(dName);
-
-            /*
-             if (classMapIt ==ontoData->classMap->end()) {
-                 (*ontoData->classMap)[dName] = OntologyClassPtr( new OntologyClass(dName) );
-                 SuperClassNodePtr sNode = SuperClassNodePtr ( new SuperClassNode (   (*ontoData->classMap)[dName]  ) );
-                 (*ontoData->superClassNodeMap)[dName]  = sNode;
-             } else if ( ontoData->superClassNodeMap->find(dName) == ontoData->superClassNodeMap->end() ) {
-                 SuperClassNodePtr sNode = SuperClassNodePtr ( new SuperClassNode (   (*ontoData->classMap)[dName]  ) );
-                 (*ontoData->superClassNodeMap)[dName]  = sNode;
-             }
-             */
 
             //if the class does not exist, create it
             if (classMapIt ==ontoData->classMap->end())
@@ -288,7 +279,6 @@ void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot
             if ( ontoData->superClassNodeMap->find(dName) == ontoData->superClassNodeMap->end() )
                 (*ontoData->superClassNodeMap)[dName] = SuperClassNodePtr ( new SuperClassNode (   (*ontoData->classMap)[dName]  ) );
 
-
             comNode->addSubNode( (*ontoData->superClassNodeMap)[dName] );
             tempRoot->addSubNode( comNode );
             (*ontoData->classMap)[cName]->addToClassVector ("ComplementClass", dName);
@@ -296,15 +286,21 @@ void OntologyParser::getOntologyClass(xmlNodePtr ontoNode, LogicNodePtr tempRoot
         else {
             tempRoot->addSubNode(comNode);
             getOntologyClass( xmlFirstElementChild(ontoNode), comNode );
-
         }
+    }
+    else if (xmlStrEqual (ontoNode->name, (xmlChar*) "withRestrictions" ) ) { //this is used only for crisp values
+        xmlNodePtr tmpNode = xmlFirstElementChild(xmlFirstElementChild(ontoNode));
+        string tmpName(reinterpret_cast<const char*>(tmpNode->name));
+        double val = atof(reinterpret_cast<const char*>(xmlNodeGetContent(tmpNode)));
+        CrispDatatypePtr crispNode = CrispDatatypePtr(new CrispDatatype(tmpName, val));
+        CrispFeatureNodePtr tmpFtNode = CrispFeatureNodePtr(new CrispFeatureNode(dName, crispNode) );
+        tempRoot->addSubNode(tmpFtNode);
     }
 }
 
 OntologyDataPtr OntologyParser::getOntologyData() {
     return ontoData;
 }
-
 
 bool OntologyParser::getOntologyFuzzyDatatype(xmlNodePtr ontoNode) {
     bool added = false;
@@ -409,9 +405,7 @@ bool OntologyParser::getOntologyIndividual(xmlNodePtr ontoNode) {
 
 string OntologyParser::ontoPropValue(xmlNodePtr node, string pName) {
     pName =(char*) xmlGetProp(node,(xmlChar*)pName.c_str());
-    if ( pName.substr(pName.size()-5,pName.size()) !="Thing")
-        pName.erase(pName.begin(),pName.begin()+ontoData->ontologyIRI.size());
-    return pName;
+    return  pName.substr(pName.find('#')+1);
 }
 
 
@@ -430,6 +424,5 @@ OntologyParser::OntologyParser(string &ontologyFile, string &cn, string &schema,
     addOntologyHierarchy( ontoNode );
     computeSelectStr();
 }
-
 
 OntologyParser::~OntologyParser() {}

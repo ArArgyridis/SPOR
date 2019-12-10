@@ -29,31 +29,18 @@ class ClassRelatedFeatureNode: public TreeNode {
     int maxPosition;
 
 public:
-
     ClassRelatedFeatureNode();
-
     ClassRelatedFeatureNode(std::string, FuzzyObjectTypePtr);
-
     virtual ~ClassRelatedFeatureNode();
-
     void forceNULLMembershipValue();
-
     std::string getFeatureName();
-
     std::string getFeatureType();
-
     std::string getRelativeClassName();
-
     double returnFeatureValue(int); //returning the value of the feature for a certain segment. The segment is identified by the int - gid
-
     void resetMembershipValue();
-
     void resetPosition();
-
     void setCResult(pqxx::connection*, std::string& tableName, std::string& gidColumn);
-
     void setFeatureType(std::string);
-
     void valueEstimation(int);
 };
 

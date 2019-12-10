@@ -21,8 +21,11 @@
 #include <string>
 #include <map>
 
-class FuzzyDatatype {
+#include "../datatype/datatype.hxx"
+
+class FuzzyDatatype: public Datatype {
     int parNum; //counter that stores the number of the fuzzy function parameters
+protected:
     double *fuzzyInput; //
     double (*fuzzyFunction)(double, double*);
 public:
@@ -34,10 +37,7 @@ public:
     double calculateValue(double);
 };
 
-typedef std::shared_ptr<FuzzyDatatype> FuzzyDatatypePtr;
-
 typedef std::map <std::string, FuzzyDatatypePtr> DatatypeMapType;
-
 typedef std::shared_ptr<DatatypeMapType> DataTypeMapTypePtr;
 
 #endif // FUZZYDATATYPE_H

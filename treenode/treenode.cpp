@@ -50,7 +50,7 @@ void TreeNode::setParentNode(LogicNodePtr node) {
     parentNode = node;
 }
 
-void TreeNode::addSegments(result res) {
+void TreeNode::addMembers(result res) {
         segmentsResult = res;
 }
 
